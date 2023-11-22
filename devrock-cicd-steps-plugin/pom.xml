@@ -6,7 +6,7 @@
         <version>[1.0,1.1)</version>
     </parent>
     <artifactId>devrock-cicd-steps-plugin</artifactId>
-    <version>1.0.12-rc</version>
+    <version>1.0.12</version>
     <properties/>
     <dependencies>
         <dependency>
