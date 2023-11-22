@@ -1,0 +1,773 @@
+package devrock.cicd.steps.processor;
+
+import static com.braintribe.console.ConsoleOutputs.brightBlue;
+import static com.braintribe.console.ConsoleOutputs.println;
+import static com.braintribe.console.ConsoleOutputs.text;
+import static com.braintribe.devrock.mc.core.commons.McOutputs.versionedArtifactIdentification;
+
+import java.io.File;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import com.braintribe.cc.lcd.EqProxy;
+import com.braintribe.console.ConsoleOutputs;
+import com.braintribe.console.output.ConfigurableConsoleOutputContainer;
+import com.braintribe.devrock.mc.api.transitive.RangedTerminals;
+import com.braintribe.devrock.mc.api.transitive.TransitiveDependencyResolver;
+import com.braintribe.devrock.mc.api.transitive.TransitiveResolutionContext;
+import com.braintribe.devrock.mc.api.transitive.TransitiveResolutionContextBuilder;
+import com.braintribe.devrock.mc.core.declared.DeclaredArtifactIdentificationExtractor;
+import com.braintribe.devrock.mc.core.declared.commons.HashComparators;
+import com.braintribe.devrock.mc.core.wirings.transitive.contract.TransitiveResolverContract;
+import com.braintribe.gm.model.reason.Maybe;
+import com.braintribe.gm.model.reason.Reason;
+import com.braintribe.gm.model.reason.Reasons;
+import com.braintribe.gm.model.reason.essential.ConfigurationError;
+import com.braintribe.gm.model.reason.essential.InvalidArgument;
+import com.braintribe.gm.model.reason.essential.ParseError;
+import com.braintribe.model.artifact.analysis.AnalysisArtifact;
+import com.braintribe.model.artifact.analysis.AnalysisArtifactResolution;
+import com.braintribe.model.artifact.analysis.AnalysisDependency;
+import com.braintribe.model.artifact.analysis.AnalysisTerminal;
+import com.braintribe.model.artifact.compiled.CompiledArtifact;
+import com.braintribe.model.artifact.compiled.CompiledDependencyIdentification;
+import com.braintribe.model.artifact.declared.DeclaredArtifact;
+import com.braintribe.model.artifact.essential.ArtifactIdentification;
+import com.braintribe.model.artifact.essential.VersionedArtifactIdentification;
+import com.braintribe.model.version.HasMajorMinor;
+import com.braintribe.model.version.Version;
+import com.braintribe.utils.CollectionTools;
+import com.braintribe.utils.FileTools;
+import com.braintribe.wire.api.Wire;
+import com.braintribe.wire.api.context.WireContext;
+
+import devrock.cicd.model.api.AnalyzeCodebase;
+import devrock.cicd.model.api.AnalyzeCodebaseResponse;
+import devrock.cicd.model.api.data.BuildReason;
+import devrock.cicd.model.api.data.CodebaseAnalysis;
+import devrock.cicd.model.api.data.CodebaseDependencyAnalysis;
+import devrock.cicd.model.api.data.GitContext;
+import devrock.cicd.model.api.data.LocalArtifact;
+import devrock.cicd.model.api.reason.FolderArtifactIdentificationFailed;
+import devrock.cicd.model.api.reason.GitAnalysisFailure;
+import devrock.cicd.steps.processing.ArtifactAvailabilityCheck;
+import devrock.cicd.steps.processing.RangeParser;
+import devrock.cicd.steps.processing.SolutionHashResolver;
+import devrock.git.GitTools;
+
+public class AnalyzeCodebaseProcessor extends SpawningServiceProcessor<AnalyzeCodebase, AnalyzeCodebaseResponse> {
+
+	@Override
+	protected StatefulServiceProcessor spawn() {
+		return new StatefulCodebaseAnalysis();
+	}
+	
+	private class StatefulCodebaseAnalysis extends StatefulServiceProcessor {
+		
+		private CodebaseAnalysis codebaseAnalysis = CodebaseAnalysis.T.create();
+		private CodebaseDependencyAnalysis dependencyAnalysis;
+		private GitContext gitContext = GitContext.T.create();
+		private Map<String, LocalArtifact> localArtifactsByFolderName = new TreeMap<>();
+		private File codebasePath;
+		private boolean isGitAssociated;
+
+		@Override
+		protected Maybe<? extends AnalyzeCodebaseResponse> process() {
+			codebasePath = new File(request.getPath());
+			codebaseAnalysis.setBasePath(codebasePath.getAbsolutePath());
+			isGitAssociated = GitTools.isGitCheckoutRoot(codebasePath);
+			
+			initializeGitContext();
+			
+			Reason error = findLocalArtifacts(codebasePath);
+			
+			if (error != null)
+				return error.asMaybe();
+			
+			identifyCodebase();
+
+			error = attachCommitHashesIfSuitable();
+			
+			if (error != null)
+				return error.asMaybe();
+			
+			error = resolveCodebaseDependencies();
+			
+			if (error != null)
+				return error.asMaybe();
+			
+			error = determineBuildArtifacts();
+			
+			if (error != null)
+				return error.asMaybe();
+			
+			error = determineUnpublishedArtifacts();
+
+			if (error != null)
+				return error.asMaybe();
+			
+			transferLocalArtifactToAnalysis();
+			
+			trimResolutions();
+			
+			AnalyzeCodebaseResponse response = AnalyzeCodebaseResponse.T.create();
+			response.setAnalysis(codebaseAnalysis);
+			response.setDependencyAnalysis(dependencyAnalysis);
+			response.setDependencyResolution(dependencyAnalysis.getResolution());
+			response.setGitContext(gitContext);
+			
+			return Maybe.complete(response);
+		}
+
+		private void initializeGitContext() {
+			gitContext.setBaseBranch(request.getBaseBranch());
+			gitContext.setBaseHash(request.getBaseHash());
+			gitContext.setBaseRemote(request.getBaseRemote());
+		}
+
+		private Reason attachCommitHashesIfSuitable() {
+			if (!request.getCi())
+				return null;
+							
+			if (!isGitAssociated)
+				return null;
+			
+			// TODO: parallelize
+			for (LocalArtifact localArtifact: localArtifactsByFolderName.values()) {
+				String folderName = localArtifact.getFolderName();
+				Maybe<String> hashMaybe = GitTools.getLatestCommitHash(codebasePath, folderName);
+				
+				if (hashMaybe.isUnsatisfied())
+					return hashMaybe.whyUnsatisfied();
+				
+				localArtifact.setCommitHash(hashMaybe.get());
+			}
+			
+			return null;
+		}
+
+		private void identifyCodebase() {
+			LocalArtifact localArtifact = findGroupIdentifyingArtifact();
+			VersionedArtifactIdentification vai = localArtifact.getArtifactIdentification();
+			Version parentVersion = Version.parse(vai.getVersion());
+			Version groupVersion = Version.from((HasMajorMinor)parentVersion);
+			String groupVersionAsStr = groupVersion.asString();
+			String groupId = vai.getGroupId();
+			
+			codebaseAnalysis.setGroupId(groupId);
+			codebaseAnalysis.setGroupVersion(groupVersionAsStr);
+		}
+
+		private Reason determineBuildArtifacts() {
+			String buildArtifacts = request.getBuildArtifacts();
+			
+			if (buildArtifacts != null) {
+				return determineBuildArtifactsFromRangeExpression(buildArtifacts);
+			}
+			else {
+				return determineBuildArtifactsByChanges();
+			}
+		}
+
+		private Reason determineBuildArtifactsFromRangeExpression(String rangeExpression) {
+			// handle special cases
+			if (".".equals(rangeExpression)) {
+				useAllArtifactsAsBuildArtifacts(BuildReason.EXPLICIT);
+				return null;
+			}
+
+			try {
+				String groupId = codebaseAnalysis.getGroupId();
+				String groupVersion = codebaseAnalysis.getGroupVersion();
+				
+				if (groupId == null || groupVersion == null)
+					return Reasons.build(ConfigurationError.T).text("Cannot parse build artifacts as group is yet unidentified as there is no single artifact in it").toReason();
+				
+				Maybe<RangedTerminals> rangedTerminalsMaybe = RangeParser.parse(rangeExpression, groupId, groupVersion);
+				
+				if (rangedTerminalsMaybe.isUnsatisfied())
+					return rangedTerminalsMaybe.whyUnsatisfied();
+				
+				RangedTerminals rangedTerminals = rangedTerminalsMaybe.get();
+				
+				TransitiveResolutionContext resolutionContext = buildCodebaseResolutionContext() //
+						.buildRange(rangedTerminals.range()) //
+						.done();
+				
+				try (WireContext<TransitiveResolverContract> context = Wire.context(new CodebaseDependencyResolverWireModule(codebasePath, localArtifactsByFolderName.values()))) {
+					
+					TransitiveDependencyResolver transitiveDependencyResolver = context.contract().transitiveDependencyResolver();
+					AnalysisArtifactResolution resolution = transitiveDependencyResolver.resolve(resolutionContext, rangedTerminals.terminals());
+					
+					if (resolution.hasFailed())
+						return resolution.getFailure();
+					
+					
+					for (AnalysisArtifact artifact: resolution.getSolutions()) {
+						LocalArtifact localArtifact = localArtifactsByFolderName.get(artifact.getArtifactId());
+						localArtifact.setBuildReason(BuildReason.EXPLICIT);
+					}
+				}
+				
+				return null;
+			}
+			catch (Exception e) {
+				return Reasons.build(InvalidArgument.T) //
+						.text("Invalid range expression: " + rangeExpression) //
+						.cause(ParseError.create(e.getMessage())) //
+						.toReason();
+			}
+		}
+		
+		private LocalArtifact findGroupIdentifyingArtifact() {
+			LocalArtifact parent = localArtifactsByFolderName.get("parent");
+			
+			if (parent != null)
+				return parent;
+			
+			return CollectionTools.getFirstElementOrNull(localArtifactsByFolderName.values());
+		}
+
+		private void trimResolutions() {
+			
+			AnalysisArtifactResolution resolution = dependencyAnalysis.getResolution();
+			resolution.getFilteredDependencies().clear();
+			
+			for (AnalysisArtifact solution: resolution.getSolutions()) {
+				solution.setOrigin(null);
+				solution.getDependencies().stream().forEach(d -> d.setOrigin(null));
+				solution.getParts().clear();
+			}
+		}
+
+		private Reason markParentChangeAffectedArtifacts() {
+			List<AnalysisArtifact> parents = findParents(dependencyAnalysis.getResolution());
+			
+			Set<AnalysisArtifact> parentTerminals = new LinkedHashSet<>();
+			
+			for (AnalysisArtifact parent: parents) {
+				collectParentTerminals(parent, parentTerminals);
+			}
+			
+			for (AnalysisArtifact parentTerminal: parentTerminals) {
+				LocalArtifact localArtifact = localArtifactsByFolderName.get(parentTerminal.getArtifactId());
+				if (localArtifact.getBuildReason() == BuildReason.NONE) {
+					// TODO: make a more differentiated decision for affected terminals by analysing the usage of parent properties that were incrementally changed (requires a comparison to an already published parent)
+					localArtifact.setBuildReason(BuildReason.PARENT_CHANGED);
+				}
+			}
+			
+			return null;
+		}
+		
+		private void collectParentTerminals(AnalysisArtifact parent, Set<AnalysisArtifact> parentTerminals) {
+			for (AnalysisDependency dependerDependency: parent.getDependers()) {
+				if ("parent".equals(dependerDependency.getScope())) {
+					AnalysisArtifact parentTerminal = dependerDependency.getDepender();
+
+					if (parentTerminal != null) {
+						Set<String> consumableProperties = parentTerminal.getOrigin().getProperties().keySet();
+						
+						DeclaredArtifact declaredArtifact = parentTerminal.getOrigin().getOrigin();
+						
+						Set<String> consumedProperties = PropertyReferenceCollector.scanPropertyReferences(declaredArtifact);
+						
+						consumedProperties.retainAll(consumableProperties);
+						
+						if (!consumedProperties.isEmpty()) {
+							if (parentTerminals.add(parent)) {
+								collectParentTerminals(parentTerminal, parentTerminals);
+							}
+						}
+					}
+				}
+			}
+		}
+		
+		private List<AnalysisArtifact> findParents(AnalysisArtifactResolution resolution) {
+			List<AnalysisArtifact> parents = new ArrayList<>();
+
+			for (AnalysisArtifact artifact: dependencyAnalysis.getResolution().getSolutions()) {
+				for (AnalysisDependency dependerDependency: artifact.getDependers()) {
+					if ("parent".equals(dependerDependency.getScope())) {
+						parents.add(artifact);
+						continue;
+					}
+				}
+			}
+			
+			return parents;
+		}
+
+		private Set<LocalArtifact> getDirectDependersNotPresentInArgument(Collection<LocalArtifact> localArtifacts) {
+			Set<LocalArtifact> dependers = new HashSet<>();
+			
+			for (LocalArtifact localArtifact: localArtifacts) {
+				String artifactId = localArtifact.getArtifactIdentification().getArtifactId();
+				
+				AnalysisArtifact analysisArtifact = dependencyAnalysis.getArtifactIndex().get(artifactId);
+				
+				for (AnalysisDependency dependency : analysisArtifact.getDependers()) {
+					AnalysisArtifact depender = dependency.getDepender();
+					if (depender != null) {
+						dependers.add(localArtifactsByFolderName.get(depender.getArtifactId()));
+					}
+				}
+			}
+			
+			dependers.removeAll(localArtifacts);
+			
+			return dependers;
+		}
+		
+		private void transferLocalArtifactToAnalysis() {
+			
+			List<LocalArtifact> artifacts = codebaseAnalysis.getArtifacts();
+			List<LocalArtifact> buildLinkingChecks = codebaseAnalysis.getBuildLinkingChecks();
+			List<LocalArtifact> buildTests = codebaseAnalysis.getBuildTests();
+			
+			List<LocalArtifact> testArtifacts = new ArrayList<>();
+			
+			List<LocalArtifact> builds = new ArrayList<>(localArtifactsByFolderName.size());
+			for (LocalArtifact localArtifact: localArtifactsByFolderName.values()) {
+				artifacts.add(localArtifact);
+
+				if (localArtifact.getBuildReason() != BuildReason.NONE) {
+					if (localArtifact.getTest()) {
+						localArtifact.setBuildReason(BuildReason.NONE);
+						testArtifacts.add(localArtifact);
+					}
+					else if (localArtifact.getIntegrationTest()) {
+						localArtifact.setBuildReason(BuildReason.NONE);
+					}
+					else {
+						builds.add(localArtifact);
+					}
+				}
+			}
+			
+			List<LocalArtifact> orderedBuilds = ArtifactsSequencer.orderSequential(dependencyAnalysis.getResolution(), builds);
+			codebaseAnalysis.setBuilds(orderedBuilds);
+			
+			Set<LocalArtifact> directDependers = getDirectDependersNotPresentInArgument(builds);
+			
+			Comparator<LocalArtifact> comparator = Comparator.comparing(a -> a.getArtifactIdentification().getArtifactId());
+			
+			// transfer compile check artifacts from directDependers and artifacts to be built
+			Stream.concat(directDependers.stream(), testArtifacts.stream()) //
+				.distinct() //
+				.sorted(comparator) //
+				.forEach(buildLinkingChecks::add);
+			
+			// transfer test artifacts from directDependers and artifacts to be built
+			Stream.concat(directDependers.stream().filter(LocalArtifact::getTest), testArtifacts.stream()) //
+				.distinct() //
+				.sorted(comparator) //
+				.forEach(buildTests::add);
+			
+			ConsoleOutputs.println();
+			println(text("Build artifacts (" + orderedBuilds.size() + ") in build order:"));
+			printArtifactList(orderedBuilds, true);
+
+			ConsoleOutputs.println();
+			println(text("Linking check artifacts (" + buildLinkingChecks.size() + "):"));
+			printArtifactList(buildLinkingChecks, false);
+			
+			ConsoleOutputs.println();
+			println(text("Unit-test artifacts (" + buildTests.size() + "):"));
+			printArtifactList(buildTests, false);
+		}
+		
+		private void printArtifactList(Collection<LocalArtifact> artifacts, boolean withBuildReason) {
+			int i = 1;
+			for (LocalArtifact localArtifact: artifacts) {
+				ConfigurableConsoleOutputContainer sequence = ConsoleOutputs.configurableSequence();
+				
+				sequence //
+					.append(String.valueOf(i++) + ". ") //
+					.append(versionedArtifactIdentification(localArtifact.getArtifactIdentification()));
+				
+				if (withBuildReason) {
+					sequence //
+						.append(" - ") //
+						.append(brightBlue(format(localArtifact.getBuildReason())));
+				}
+				
+				println(sequence);
+			}
+		}
+		
+		private String format(BuildReason buildReason) {
+			return buildReason.name().toLowerCase().replace('_', ' ');
+		}
+
+		private Set<String> getIgnores(File path) {
+			File ingoreFile = new File(path, ".dontbuild");
+			
+			if (!ingoreFile.exists())
+				return Collections.emptySet();
+			
+			Set<String> ignores = new LinkedHashSet<>();
+			
+			for (String line: FileTools.read(ingoreFile).asLines()) {
+				int index = line.indexOf(":");
+				
+				if (index == -1) 
+					ignores.add(line);
+				else
+					ignores.add(line.substring(index + 1));
+			}
+			
+			return ignores;
+		}
+		
+		private Reason findLocalArtifacts(File path) {
+			Set<String> ignores = getIgnores(path);
+			
+			for (File folder: path.listFiles()) {
+				if (!folder.isDirectory())
+					continue;
+				
+				if (ignores.contains(folder.getName())) 
+					continue;
+				
+				File pomFile = new File(folder, "pom.xml");
+				if (!pomFile.exists())
+					continue;
+				
+				Maybe<LocalArtifact> localArtifactMaybe = readLocalArtifact(pomFile);
+				
+				if (localArtifactMaybe.isUnsatisfied())
+					return localArtifactMaybe.whyUnsatisfied();
+				
+				LocalArtifact localArtifact = localArtifactMaybe.get();
+				localArtifact.setBuildReason(BuildReason.NONE);
+				
+				classifyArtifact(localArtifact);
+				
+				localArtifactsByFolderName.put(localArtifact.getFolderName(), localArtifact);
+			}
+			
+			return null;
+		}
+		
+		private void classifyArtifact(LocalArtifact localArtifact) {
+			String packaging = Optional.ofNullable(localArtifact.getPackaging()).map(String::toLowerCase).orElse("jar");
+			
+			switch (packaging) {
+			case "war":
+			case "ear":
+			case "bundle":
+			case "zip":
+				localArtifact.setBundle(true);
+			default:
+				break;
+			}
+			
+			String artifactId = localArtifact.getArtifactIdentification().getArtifactId();
+			
+			if (artifactId.endsWith("-integration-test")) {
+				localArtifact.setIntegrationTest(true);
+			}
+			else if (artifactId.endsWith("-test")) {
+				localArtifact.setTest(true);
+			}
+
+		}
+
+		private Maybe<LocalArtifact> readLocalArtifact(File pomFile) {
+			File folder = pomFile.getParentFile();
+			Maybe<CompiledArtifact> caiMaybe = DeclaredArtifactIdentificationExtractor.extractMinimalArtifact(pomFile);
+			
+			if (caiMaybe.isUnsatisfied()) {
+				return Reasons.build(FolderArtifactIdentificationFailed.T).text("Could identify artifact from folder: " + folder.getAbsolutePath()).cause(caiMaybe.whyUnsatisfied()).toMaybe();
+			}
+			
+			CompiledArtifact ca = caiMaybe.get();
+			LocalArtifact localArtifact = buildLocalArtifact(folder, ca);
+			
+			return Maybe.complete(localArtifact);
+		}
+		
+		private LocalArtifact buildLocalArtifact(File folder, CompiledArtifact ca) {
+			VersionedArtifactIdentification vai = VersionedArtifactIdentification.create(ca.getGroupId(), ca.getArtifactId(), ca.getVersion().asString());
+			LocalArtifact localArtifact = LocalArtifact.T.create();
+			localArtifact.setFolderName(folder.getName());
+			localArtifact.setArtifactIdentification(vai);
+			localArtifact.setIdentification(vai.asString());
+			localArtifact.setPackaging(ca.getPackaging());
+			return localArtifact;
+		}
+		
+		
+		private Reason determineBuildArtifactsByChanges() {
+
+			Reason error = determineBuildArtifactsByFolderChanges();
+			
+			if (error != null)
+				return error;
+			
+			error = markParentChangeAffectedArtifacts();
+			
+			if (error != null)
+				return error;
+			
+			error = determineChangedBundleArtifacts();
+			
+			if (error != null)
+				return error;
+			
+			return null;
+		}
+		
+		private Reason determineUnpublishedArtifacts() {
+			if (!request.getDetectUnpublishedArtifacts())
+				return null;
+			
+			List<LocalArtifact> unpublishedArtifactCandidates = new ArrayList<>();
+			
+			for (LocalArtifact candidate : localArtifactsByFolderName.values()) {
+				if (!candidate.getTest() && !candidate.getIntegrationTest())
+					unpublishedArtifactCandidates.add(candidate);
+			}
+			
+			Maybe<Map<LocalArtifact, Boolean>> availabilityMaybe = ArtifactAvailabilityCheck.resolveArtifactsAvailability(unpublishedArtifactCandidates, codebasePath);
+			
+			if (availabilityMaybe.isUnsatisfied())
+				return availabilityMaybe.whyUnsatisfied();
+			
+			Map<LocalArtifact, Boolean> availability = availabilityMaybe.get();
+			
+			for (LocalArtifact localArtifact: localArtifactsByFolderName.values()) {
+				
+				if (localArtifact.getBuildReason() == BuildReason.NONE) {
+					if (!availability.get(localArtifact)) {
+						localArtifact.setBuildReason(BuildReason.UNPUBLISHED);
+					}
+				}
+				
+			}
+			
+			return null;
+		}
+
+		private Reason determineBuildArtifactsByFolderChanges() {
+			
+			if (isGitAssociated) {
+				Reason error = ensureHash();
+				
+				if (error != null)
+					return error;
+				
+				String hash = gitContext.getBaseHash();
+				
+				for (File untrackedFolder: GitTools.getUntrackedFolders(codebasePath)) {
+					LocalArtifact localArtifact = localArtifactsByFolderName.get(untrackedFolder.getName());
+					if (localArtifact != null)
+						localArtifact.setBuildReason(BuildReason.ARTIFACT_UNTRACKED);
+				}
+				
+				for (File changedFolder: GitTools.getChangedFolders(codebasePath, hash)) {
+					LocalArtifact localArtifact = localArtifactsByFolderName.get(changedFolder.getName());
+					if (localArtifact != null)
+						localArtifact.setBuildReason(BuildReason.ARTIFACT_CHANGED);
+				}
+			}
+			else {
+				useAllArtifactsAsBuildArtifacts(BuildReason.ARTIFACT_UNTRACKED);
+			}
+			
+			return null;
+		}
+		
+		private void useAllArtifactsAsBuildArtifacts(BuildReason buildReason) {
+			for (LocalArtifact localArtifact: localArtifactsByFolderName.values()) {
+				localArtifact.setBuildReason(buildReason);
+			}
+		}
+		
+		private Reason ensureHash() {
+			String baseHash = request.getBaseHash();
+			
+			if (baseHash != null) 
+				return null;
+			
+			String baseBranch = request.getBaseBranch();
+			
+			if (baseBranch == null) {
+				gitContext.setBaseHash("HEAD");
+				return null;
+			}
+			
+			Maybe<String> maybe = GitTools.getBranchHash(codebasePath, gitContext.getBaseRemote(), baseBranch);
+			
+			if (maybe.isUnsatisfied())
+				return Reasons.build(GitAnalysisFailure.T) //
+						.text("Could not determine git hash for base branch " + baseBranch) //
+						.cause(maybe.whyUnsatisfied()) //
+						.toReason();
+			
+			gitContext.setBaseHash(maybe.get());
+			
+			return null;
+		}
+
+		private Reason determineChangedBundleArtifacts() {
+			List<LocalArtifact> bundleArtifacts = new ArrayList<>();
+			List<LocalArtifact> changedArtifacts = new ArrayList<>();
+			
+			for (LocalArtifact localArtifact: localArtifactsByFolderName.values()) {
+				if (localArtifact.getBuildReason() != BuildReason.NONE) {
+					if (localArtifact.getBundle())
+						bundleArtifacts.add(localArtifact);
+				}
+				else {
+					changedArtifacts.add(localArtifact);
+				}
+			}
+			
+			if (bundleArtifacts.isEmpty())
+				return null;
+			
+			return determineChangedBundleArtifacts(changedArtifacts, bundleArtifacts);
+		}
+
+		private Reason determineChangedBundleArtifacts(Collection<LocalArtifact> changedArtifacts, Collection<LocalArtifact> bundleArtifacts) {
+			List<LocalArtifact> bundlersWithSolutionHashChange = new ArrayList<>();
+			try (SolutionHashResolver solutionHashResolver = new SolutionHashResolver(changedArtifacts, codebasePath)) {
+				for (LocalArtifact localArtifact: bundleArtifacts) {
+					Maybe<Boolean> changedMaybe = solutionHashResolver.hasSolutionHashChange(localArtifact);
+					
+					if (changedMaybe.isUnsatisfied())
+						return changedMaybe.whyUnsatisfied();
+					
+					if (changedMaybe.get()) {
+						localArtifact.setBuildReason(BuildReason.DEPENDENCY_RESOLUTION_CHANGED);
+						bundlersWithSolutionHashChange.add(localArtifact);
+					}
+				}
+			}
+			
+			if (bundlersWithSolutionHashChange.isEmpty())
+				return null;
+			
+			markDependerBundleArtifactsChanged(bundleArtifacts, bundlersWithSolutionHashChange);
+			
+			return null;
+		}
+		
+		private void markDependerBundleArtifactsChanged(Collection<LocalArtifact> bundleArtifacts, List<LocalArtifact> bundlersWithSolutionHashChange) {
+			Map<String, LocalArtifact> localArtifactIndex = new LinkedHashMap<>();
+			Map<String, AnalysisArtifact> artifactIndex = dependencyAnalysis.getArtifactIndex();
+			
+			// build the localArtifactIndex
+			for (LocalArtifact artifact: bundleArtifacts) {
+				localArtifactIndex.put(artifact.getArtifactIdentification().getArtifactId(), artifact);
+			}
+			
+			// run through bundle artifacts with solution hash change and collect all of their dependers
+			Set<AnalysisArtifact> dependers = new HashSet<>();
+			
+			for (LocalArtifact artifact: bundlersWithSolutionHashChange) {
+				AnalysisArtifact analysisArtifact = artifactIndex.get(artifact.getArtifactIdentification().getArtifactId());
+				collectDependers(analysisArtifact, dependers);
+			}
+			
+			// run through all dependers and mark bundlers with no build reason with DEPENDENCY_RESOLUTION_CHANGED
+			for (AnalysisArtifact depender: dependers) {
+				LocalArtifact localArtifact = localArtifactIndex.get(depender.getArtifactId());
+				
+				if (localArtifact.getBundle() && localArtifact.getBuildReason() == BuildReason.NONE) {
+					localArtifact.setBuildReason(BuildReason.DEPENDENCY_RESOLUTION_CHANGED);
+					bundleArtifacts.add(localArtifact);
+				}
+			}
+		}
+		
+		private void collectDependers(AnalysisArtifact artifact, Set<AnalysisArtifact> dependers) {
+			for (AnalysisDependency dependency : artifact.getDependers()) {
+				AnalysisArtifact depender = dependency.getDepender();
+				
+				if (!dependers.add(depender))
+					continue;
+				
+				collectDependers(depender, dependers);
+			}
+		}
+
+		private TransitiveResolutionContextBuilder buildCodebaseResolutionContext() {
+			Set<EqProxy<ArtifactIdentification>> localIdentifications = new HashSet<>();
+			
+			for (LocalArtifact localArtifact: localArtifactsByFolderName.values()) {
+				CompiledDependencyIdentification terminal = CompiledDependencyIdentification.from(localArtifact.getArtifactIdentification());
+				localIdentifications.add(HashComparators.artifactIdentification.eqProxy(terminal));
+			}
+			
+			return TransitiveResolutionContext.build() //
+					.dependencyFilter(d -> localIdentifications.contains(HashComparators.artifactIdentification.eqProxy(d))) //
+					.includeParentDependencies(true) //
+					.includeImportDependencies(true) //
+					.lenient(true);
+		}
+		
+		private Reason resolveCodebaseDependencies() {
+			try (WireContext<TransitiveResolverContract> context = Wire.context(new CodebaseDependencyResolverWireModule(codebasePath, localArtifactsByFolderName.values()))) {
+				List<CompiledDependencyIdentification> terminals = localArtifactsByFolderName.values().stream() //
+					.map(LocalArtifact::getArtifactIdentification) //
+					.map(CompiledDependencyIdentification::from) //
+					.collect(Collectors.toList());
+				
+				TransitiveResolutionContext resolutionContext = buildCodebaseResolutionContext().done();
+				
+				AnalysisArtifactResolution resolution = context.contract().transitiveDependencyResolver().resolve(resolutionContext, terminals);
+				
+				if (resolution.hasFailed())
+					return resolution.getFailure();
+				
+				Iterator<AnalysisTerminal> it = resolution.getTerminals().iterator();
+				
+				while (it.hasNext()) {
+					AnalysisTerminal terminal = it.next();
+					
+					if (terminal instanceof AnalysisDependency) {
+						AnalysisDependency dependency = (AnalysisDependency) terminal;
+						
+						
+						if (dependency.getSolution().getDependers().size() > 1) {
+							it.remove();
+						}
+					}
+				}
+				
+				// index artifacts
+				Map<String, AnalysisArtifact> artifactIndex = new HashMap<>();
+				
+				for (AnalysisArtifact solution: resolution.getSolutions()) {
+					artifactIndex.put(solution.getArtifactId(), solution);
+				}
+				
+				CodebaseDependencyAnalysis dependencyAnalysis = CodebaseDependencyAnalysis.T.create();
+				dependencyAnalysis.setResolution(resolution);
+				dependencyAnalysis.setArtifactIndex(artifactIndex);
+				
+				this.dependencyAnalysis = dependencyAnalysis;
+				
+				return null;
+			}
+		}
+	}
+}

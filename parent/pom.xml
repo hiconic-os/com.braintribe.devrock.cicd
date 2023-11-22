@@ -1,0 +1,19 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>com.braintribe.devrock.cicd</groupId>
+	<artifactId>parent</artifactId>
+	<version>1.0.2-pc</version>
+	<packaging>pom</packaging>
+	<properties>
+		<java.version>1.17</java.version>
+		<V.com.braintribe.devrock.cicd>[1.0,1.1)</V.com.braintribe.devrock.cicd>
+        <V.com.braintribe.devrock>[2.0,2.1)</V.com.braintribe.devrock>
+        <V.com.braintribe.execution>[2.0,2.1)</V.com.braintribe.execution>
+        <V.com.braintribe.common>[2.0,2.1)</V.com.braintribe.common>
+        <V.com.braintribe.gm>[2.0,2.1)</V.com.braintribe.gm>
+        <V.com.braintribe.xml>[2.0,2.1)</V.com.braintribe.xml>
+        <V.com.braintribe.testing>[2.0,2.1)</V.com.braintribe.testing>
+        <V.com.braintribe.wire>[2.0,2.1)</V.com.braintribe.wire>
+        <V.com.braintribe.logging>[2.0,2.1)</V.com.braintribe.logging>
+	</properties>
+</project>

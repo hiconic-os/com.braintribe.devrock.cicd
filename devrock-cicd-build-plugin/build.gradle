@@ -1,0 +1,27 @@
+plugins {
+    id 'groovy-gradle-plugin'
+    id 'maven-publish'
+}
+
+group = 'com.braintribe.devrock.cicd'
+archivesBaseName = 'devrock-cicd-steps-plugin'
+version = '1.0.1'
+
+def instRepo = "file://" + java.nio.file.Path.of("${projectDir}", "..", "..", "..", "artifacts", "inst").toAbsolutePath().normalize().toString()
+println instRepo
+
+// Konfiguration des 'maven-publish' Plugins
+publishing {
+    repositories {
+        maven {
+            url = instRepo
+        }
+    }
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+        }
+    }
+}
+
+

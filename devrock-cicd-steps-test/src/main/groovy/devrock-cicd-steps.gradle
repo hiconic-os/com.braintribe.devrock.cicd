@@ -1,0 +1,169 @@
+import devrock.cicd.steps.endpoint.Steps
+import com.braintribe.model.generic.reflection.EntityType
+import devrock.step.model.api.StepRequest
+import devrock.cicd.model.api.AnalyzeCodebase
+import devrock.cicd.model.api.BuildArtifacts
+import devrock.cicd.model.api.data.GitContext
+import devrock.cicd.model.api.data.LocalArtifact;
+import com.braintribe.console.ConsoleConfiguration
+import com.braintribe.console.PrintStreamConsole
+import org.gradle.api.AntBuilder
+
+buildscript {
+    repositories {
+        maven {
+            url "https://artifactory.braintribe.com/artifactory/core-dev"
+            credentials {
+                username System.getenv('OPENTF_REPO_USER')
+                password System.getenv('OPENTF_REPO_PASSWORD')
+            }
+        }
+        maven {
+            url "https://artifactory.braintribe.com/artifactory/third-party"
+            credentials {
+                username System.getenv('OPENTF_REPO_USER')
+                password System.getenv('OPENTF_REPO_PASSWORD')
+            }
+        }
+        maven {
+            url "https://artifactory.braintribe.com/artifactory/devrock"
+            credentials {
+                username System.getenv('OPENTF_REPO_USER')
+                password System.getenv('OPENTF_REPO_PASSWORD')
+            }
+        }
+        maven {
+            url uri("file://${projectDir}/../../../artifacts/inst")
+        }
+    }
+
+    dependencies {
+        classpath 'com.braintribe.devrock.cicd:devrock-cicd-steps:1.0+'
+    }
+}
+
+configurations {
+    antClasspath
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    antClasspath files(fileTree(dir: 'C:/devrock-sdk/tools/ant-libs', include: '*.jar'))
+    antClasspath 'org.apache.ant:ant-junit:1.10.13'
+}
+
+
+ant.taskdef(
+    uri: "antlib:com.braintribe.build.ant.tasks",
+    resource: "com/braintribe/build/ant/tasks/antlib.xml",
+    classpath: configurations.antClasspath.asPath,
+    loaderref: "devrock-ant-loader"
+)
+
+ant.taskdef(
+    resource: "net/sf/antcontrib/antlib.xml",
+    loaderref: "devrock-ant-loader"
+)
+
+ConsoleConfiguration.install(new PrintStreamConsole(System.out, true))
+
+def exchangeFolder = new File("${projectDir}/out/gradle-test")
+
+ext.steps = Steps.evaluator(exchangeFolder)
+
+/* Use this method to configure task dependency base on the sequencing mode which may be externally controlled 
+like in a pipeline that wants to control stepping and its reflection
+or auto sequenced by gradles dependency mechanism for local builds on a developer machine that has no Jenkins or GitLab.yaml */
+ext.onAutoSequenced = { Closure run ->
+    if (isAutoSequenced())
+        run()
+}
+
+ext.doStep = { EntityType<? extends StepRequest> step ->
+    def reason = steps.evaluate(step)
+    if (reason != null) {
+        throw new GradleException(reason.stringify());
+    }
+}
+
+ext.doStepRequest = { StepRequest step ->
+    def reason = steps.evaluate(step)
+    if (reason != null) {
+        throw new GradleException(reason.stringify());
+    }
+}
+
+ext.lastStep = null
+ext.preparation = null
+
+def PREP(Closure p) {
+    ext.preparation = p
+}
+
+def STEP(String name, EntityType<? extends StepRequest> stepType) {
+    return STEP(name, stepType, null)
+}
+
+def STEP(String name, EntityType<? extends StepRequest> stepType, Closure initializer) {
+    return STEP(name, {
+        def step = stepType.create()
+        if (initializer != null)
+            step.with initializer
+
+        doStepRequest step
+    })
+}
+
+def STEP(String name, Closure runnable) {
+    return lastStep = task(name, {
+        if (lastStep == null)
+            doFirst { steps.with preparation }
+        else 
+            onAutoSequenced { dependsOn lastStep }
+
+        doLast runnable
+    })
+}
+
+def isAutoSequenced() {
+    !isExternallySequenced();
+}
+
+def isExternallySequenced() {
+    "true".equals(System.getenv("DEVROCK_PIPELINE_EXTERNAL_SEQUENCING")) || 
+    "true".equals(findProperty("externallySequenced"))
+}
+
+ext.runAnt = {LocalArtifact artifact, String target ->
+    def artifactDir = new File(groupDir, artifact.folderName).getAbsolutePath()
+    def outputFile = File.createTempFile("antOutput", ".log")
+
+    try {
+        ant.ant(
+            dir: artifactDir,
+            target: target,
+            inheritAll: false,
+            inheritRefs: false,
+            output: outputFile.absolutePath,
+        ) { 
+            property(name: 'colors', value: 'true')
+        }
+    }
+    finally {
+        def output = outputFile.text
+        println output
+        outputFile.delete()
+    }
+}
+// TODO: adapt to actual path
+ext.groupDir = new File(projectDir, "../../com.braintribe.devrock");
+
+for (def buildListener: ant.project.buildListeners) {
+    if (buildListener instanceof org.gradle.api.internal.project.ant.AntLoggingAdapter) {
+        ant.project.removeBuildListener(buildListener)
+        break;
+    }
+}

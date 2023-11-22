@@ -1,0 +1,30 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<groupId>com.braintribe.devrock.cicd</groupId>
+		<artifactId>parent</artifactId>
+		<version>[1.0,1.1)</version>
+	</parent>
+	<artifactId>firebase-locking</artifactId>
+	<version>1.0.4-rc</version>
+	<properties/>
+	<dependencies>
+		<!-- no dependencies -->
+		<dependency>
+			<groupId>com.braintribe.devrock.cicd</groupId>
+			<artifactId>lock-data-model</artifactId>
+			<version>${V.com.braintribe.devrock.cicd}</version>
+			<?tag asset?>
+		</dependency>
+		<dependency>
+			<groupId>com.braintribe.gm</groupId>
+			<artifactId>json-marshaller</artifactId>
+			<version>${V.com.braintribe.gm}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.google.api-client</groupId>
+			<artifactId>google-api-client</artifactId>
+			<version>1.34.0</version>
+		</dependency>
+	</dependencies>
+</project>

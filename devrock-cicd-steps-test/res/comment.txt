@@ -1,0 +1,14 @@
+Hallo Welt
+
+mir geht es gut
+
+---
+bla
+
+--- # ci
+foo: true
+bar: "text"
+--- # ci classifier
+!devrock.cicd.model.api.data.GitContext
+baseHash: "123"
+baseBranch: "main"
