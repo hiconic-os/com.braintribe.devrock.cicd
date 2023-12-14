@@ -32,6 +32,7 @@ import com.braintribe.gm.model.reason.essential.NotFound;
 import com.braintribe.model.artifact.compiled.CompiledArtifact;
 import com.braintribe.model.artifact.compiled.CompiledArtifactIdentification;
 import com.braintribe.model.artifact.compiled.CompiledDependencyIdentification;
+import com.braintribe.model.artifact.essential.PartIdentification;
 import com.braintribe.model.version.Version;
 import com.braintribe.wire.api.Wire;
 import com.braintribe.wire.api.context.WireContext;
@@ -69,35 +70,40 @@ public class ArtifactAvailabilityCheck {
 			TransitiveResolverContract resolver = wireContext.contract();
 			ArtifactResolver artifactResolver = resolver.dataResolverContract().artifactResolver();
 			
-			ExactArtifactsResolver exactArtifactsResolver = new ExactArtifactsResolver(artifactResolver);
-			artifacts.parallelStream().forEach(exactArtifactsResolver::resolveExactArtifact);
+			PreviousArtifactsResolver previousArtifactsResolver = new PreviousArtifactsResolver(artifactResolver);
+			artifacts.parallelStream().forEach(previousArtifactsResolver::resolvePreviousArtifact);
 			
-			List<Reason> errors = exactArtifactsResolver.errors;
+			List<Reason> errors = previousArtifactsResolver.errors;
 			
 			if (!errors.isEmpty()) {
 				return Reasons.build(ArtifactAvailabilityCheckFailed.T).text("Failed to check artifact availability").causes(errors).toMaybe();
 			}
 			
-			return Maybe.complete(exactArtifactsResolver.availablities);
+			return Maybe.complete(previousArtifactsResolver.availablities);
 		}
 	}
 	
-	private static class ExactArtifactsResolver {
+	private static class PreviousArtifactsResolver {
 		ArtifactResolver artifactResolver;
 		
 		Map<LocalArtifact, Boolean> availablities = new ConcurrentHashMap<>();
 		List<Reason> errors = new ArrayList<>();
 		volatile boolean failed;
 		
-		public ExactArtifactsResolver(ArtifactResolver artifactResolver) {
+		public PreviousArtifactsResolver(ArtifactResolver artifactResolver) {
 			this.artifactResolver = artifactResolver;
 		}
 
-		public void resolveExactArtifact(LocalArtifact la) {
+		public void resolvePreviousArtifact(LocalArtifact la) {
 			if (failed)
 				return;
 			
+			// create artifact identification with a version one prior to the one from the local artifact  
 			CompiledArtifactIdentification cai = CompiledArtifactIdentification.from(la.getArtifactIdentification());
+			
+			Version version = cai.getVersion();
+			version.setRevision(version.getRevision() - 1);
+			
 			try {
 				Maybe<List<VersionInfo>> versionsMaybe = artifactResolver.getVersionsReasoned(cai);
 				
@@ -107,8 +113,6 @@ public class ArtifactAvailabilityCheck {
 				}
 				
 				List<VersionInfo> versions = versionsMaybe.get();
-				
-				Version version = cai.getVersion();
 				
 				boolean versionFound = false;
 				
@@ -124,7 +128,7 @@ public class ArtifactAvailabilityCheck {
 					return;
 				}
 				
-				Maybe<ArtifactDataResolution> resolutionMaybe = artifactResolver.resolvePart(cai, PartIdentifications.pom);
+				Maybe<ArtifactDataResolution> resolutionMaybe = artifactResolver.resolvePart(cai, PartIdentifications.publishComplete);
 				
 				if (resolutionMaybe.isUnsatisfied()) {
 					if (resolutionMaybe.isUnsatisfiedBy(NotFound.T)) {

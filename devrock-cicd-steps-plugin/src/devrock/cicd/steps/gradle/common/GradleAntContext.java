@@ -5,6 +5,7 @@ import static com.braintribe.console.ConsoleOutputs.brightYellow;
 import static com.braintribe.console.ConsoleOutputs.cyan;
 import static com.braintribe.console.ConsoleOutputs.println;
 import static com.braintribe.console.ConsoleOutputs.sequence;
+import static com.braintribe.console.ConsoleOutputs.stackTrace;
 import static com.braintribe.console.ConsoleOutputs.text;
 import static com.braintribe.console.ConsoleOutputs.white;
 import static com.braintribe.console.ConsoleOutputs.yellow;
@@ -30,19 +31,22 @@ import com.braintribe.utils.FileTools;
 import com.braintribe.utils.lcd.StringTools;
 
 public class GradleAntContext {
+
 	private final String loaderref = "devrock-ant-loader";
 	private boolean loaderrefDefined = false;
 	private final String classpath;
 	private final File antLibsFolder;
 	private final File antCustomLibsFolder;
+	private final boolean showStacktrace;
 
 	private final Project project;
 	private final Logger rootLogger = Logger.getLogger("");
 
-	public GradleAntContext(String classpath, File antLibsFolder, File antCustomLibsFolder) {
+	public GradleAntContext(String classpath, File antLibsFolder, File antCustomLibsFolder, boolean showStacktrace) {
 		this.classpath = classpath;
 		this.antLibsFolder = antLibsFolder;
 		this.antCustomLibsFolder = antCustomLibsFolder;
+		this.showStacktrace = showStacktrace;
 
 		this.project = new Project();
 		this.project.init();
@@ -210,7 +214,7 @@ public class GradleAntContext {
 	private final Set<AntTaskContext> failedBuilds = newConcurrentSet();
 
 	public void printReport(AntTaskContext taskCtx) {
-		if (taskCtx.failed)
+		if (taskCtx.buildException != null)
 			failedBuilds.add(taskCtx);
 		else
 			printReportNow(taskCtx);
@@ -228,6 +232,14 @@ public class GradleAntContext {
 		for (AntTaskContext failedBuild : failedBuilds)
 			println(cyan("\t" + failedBuild.artifactDir.getName()));
 
+		println("");
+		println(sequence( //
+				text("\tTO SKIP ALREADY BUILT ARTIFACTS use '"), //
+				cyan("-Pskip=true"), //
+				text("' PARAMETER after fixing the issue.\n\t"), //
+				text("The list of artifacts you've already built will be read from a temp file.") //
+		));
+
 		failedBuilds.clear();
 	}
 
@@ -240,10 +252,27 @@ public class GradleAntContext {
 				text("===================================================\n"), //
 				white("Executing ant target "), brightYellow(taskCtx.target), text(" for "), cyan(artifactId), text("\n"), //
 				text(logOutput), //
+				brightRed(errorIfRelevant(taskCtx)), //
 				duration(taskCtx.durationMs, artifactId), //
 				text("\n") //
 		));
 		taskCtx.outputFile.delete();
+	}
+
+	/* This is here, because in some cases Ant doesn't log the error, but only throws a BuildException (e.g. when instantiating a POJO in build.xml
+	 * using an invalid property name.) */
+	private ConsoleOutput errorIfRelevant(AntTaskContext taskCtx) {
+		Exception e = taskCtx.buildException;
+		if (e == null)
+			return text("");
+
+		ConsoleOutput errorOutput = showStacktrace ? stackTrace(e) : text(e.getMessage());
+
+		return sequence( //
+				text("\nBUILD FAILED WITH:\n"), //
+				errorOutput, //
+				text("\n\n") //
+		);
 	}
 
 	private ConsoleOutput duration(long durationMs, String folderName) {
@@ -253,4 +282,5 @@ public class GradleAntContext {
 		String duration = StringTools.prettyPrintMilliseconds(durationMs, true);
 		return sequence(text("Building "), cyan(folderName), text(" took "), yellow(duration));
 	}
+
 }

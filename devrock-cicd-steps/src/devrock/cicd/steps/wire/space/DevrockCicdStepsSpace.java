@@ -21,6 +21,7 @@ import devrock.cicd.model.api.PreparePublishingResponse;
 import devrock.cicd.model.api.PublishArtifacts;
 import devrock.cicd.model.api.RaiseAndMergeArtifacts;
 import devrock.cicd.model.api.RunTests;
+import devrock.cicd.model.api.UpdateGithubArtifactIndex;
 import devrock.cicd.model.api.data.CodebaseDependencyAnalysis;
 import devrock.cicd.model.api.test.Test1Request;
 import devrock.cicd.model.api.test.Test2Request;
@@ -33,9 +34,11 @@ import devrock.cicd.steps.processor.PreparePublishingProcessor;
 import devrock.cicd.steps.processor.PublishArtifactsProcessor;
 import devrock.cicd.steps.processor.RaiseAndMergeArtifactsProcessor;
 import devrock.cicd.steps.processor.RunTestsProcessor;
+import devrock.cicd.steps.processor.UpdateGithubArtifactIndexProcessor;
 import devrock.cicd.steps.processor.test.Test1Processor;
 import devrock.cicd.steps.processor.test.Test2Processor;
 import devrock.step.api.module.wire.StepModuleContract;
+import devrock.step.model.api.meta.ArgumentPropagation;
 import devrock.step.model.api.meta.ExchangeClassifier;
 import devrock.step.model.api.meta.ExchangeConfiguration;
 import devrock.step.model.api.meta.ExternalArgument;
@@ -53,24 +56,26 @@ public class DevrockCicdStepsSpace implements StepModuleContract {
 	@Override
 	public void configureApiModel(ModelMetaDataEditor editor) {
 		Intricate intricate = Intricate.T.create();
+		ArgumentPropagation defaultArgumentPropagation = ArgumentPropagation.T.create();
 		
 		editor.onEntityType(CodebaseDependencyAnalysis.T).addMetaData(intricate);
 		editor.onEntityType(AnalysisArtifactResolution.T).addMetaData(intricate);
 		
-		ExchangeClassifier exchangeClassifier = ExchangeClassifier.T.create();
+		ExchangeClassifier exchangeClassifier = ExchangeClassifier.T .create();
 		exchangeClassifier.setValue("codebase");
 
 		editor.onEntityType(AnalyzeCodebaseResponse.T).addPropertyMetaData(AnalyzeCodebaseResponse.dependencyResolution, exchangeClassifier);
 		editor.onEntityType(PreparePublishingResponse.T).addPropertyMetaData(PreparePublishingResponse.dependencyResolution, exchangeClassifier);
 
-		ExternalArgument genericExternalArgument = ExternalArgument.T.create();
+		ExternalArgument defaultExternalArgument = ExternalArgument.T.create();
 
 		editor.onEntityType(MultiThreadedStepRequest.T) //
-				.addPropertyMetaData(MultiThreadedStepRequest.threads, genericExternalArgument);
+				.addPropertyMetaData(MultiThreadedStepRequest.threads, defaultExternalArgument);
 
 		editor.onEntityType(BuildArtifacts.T) //
-				.addPropertyMetaData(BuildArtifacts.candidateInstall, genericExternalArgument) //
-				.addPropertyMetaData(BuildArtifacts.skip, genericExternalArgument);
+				.addPropertyMetaData(BuildArtifacts.candidateInstall, defaultExternalArgument, defaultArgumentPropagation) //
+				.addPropertyMetaData(BuildArtifacts.generateOptionals, defaultExternalArgument, defaultArgumentPropagation) //
+				.addPropertyMetaData(BuildArtifacts.skip, defaultExternalArgument);
 
 		ExternalArgument rangeExternalArgument = ExternalArgument.T.create();
 		rangeExternalArgument.setName("range");
@@ -79,11 +84,11 @@ public class DevrockCicdStepsSpace implements StepModuleContract {
 		ProjectDir projectDir = ProjectDir.T.create();
 		editor.onEntityType(AnalyzeCodebase.T).addPropertyMetaData(AnalyzeCodebase.path, projectDir);
 		editor.onEntityType(EnrichExchangeContext.T).addPropertyMetaData(EnrichExchangeContext.gitPath, projectDir);
-		editor.onEntityType(AnalyzeCodebase.T).addPropertyMetaData(AnalyzeCodebase.baseBranch, genericExternalArgument);
-		editor.onEntityType(AnalyzeCodebase.T).addPropertyMetaData(AnalyzeCodebase.baseHash, genericExternalArgument);
-		editor.onEntityType(AnalyzeCodebase.T).addPropertyMetaData(AnalyzeCodebase.baseRemote, genericExternalArgument);
-		editor.onEntityType(AnalyzeCodebase.T).addPropertyMetaData(AnalyzeCodebase.detectUnpublishedArtifacts, genericExternalArgument);
-		editor.onEntityType(EnvironmentAware.T).addPropertyMetaData(EnvironmentAware.ci, genericExternalArgument);
+		editor.onEntityType(AnalyzeCodebase.T).addPropertyMetaData(AnalyzeCodebase.baseBranch, defaultExternalArgument);
+		editor.onEntityType(AnalyzeCodebase.T).addPropertyMetaData(AnalyzeCodebase.baseHash, defaultExternalArgument);
+		editor.onEntityType(AnalyzeCodebase.T).addPropertyMetaData(AnalyzeCodebase.baseRemote, defaultExternalArgument);
+		editor.onEntityType(AnalyzeCodebase.T).addPropertyMetaData(AnalyzeCodebase.detectUnpublishedArtifacts, defaultExternalArgument);
+		editor.onEntityType(EnvironmentAware.T).addPropertyMetaData(EnvironmentAware.ci, defaultExternalArgument);
 		
 		ExchangeConfiguration exchangeConfiguration = ExchangeConfiguration.T.create();
 		
@@ -103,6 +108,7 @@ public class DevrockCicdStepsSpace implements StepModuleContract {
 		dispatching.register(RunTests.T, runTestsProcessor());
 		dispatching.register(RaiseAndMergeArtifacts.T, raiseAndMergeArtifactsProcessor());
 		dispatching.register(PublishArtifacts.T, publishArtifactsProcessor());
+		dispatching.register(UpdateGithubArtifactIndex.T, updateGithubArtifactIndexProcessor());
 	}
 
 	@Managed
@@ -158,5 +164,10 @@ public class DevrockCicdStepsSpace implements StepModuleContract {
 	@Managed
 	private PreparePublishingProcessor prepareCodebaseForPublishingProcessor() {
 		return new PreparePublishingProcessor();
+	}
+	
+	@Managed
+	private UpdateGithubArtifactIndexProcessor updateGithubArtifactIndexProcessor() {
+		return new UpdateGithubArtifactIndexProcessor();
 	}
 }

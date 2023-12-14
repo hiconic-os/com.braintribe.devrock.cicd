@@ -109,6 +109,11 @@ public class FirebaseLock implements Lock {
 				
 				LockRecord lockRecord = transportHelper.decode(response.body());
 				
+				if (lockRecord == null) {
+					logger.warn("Got null lock record for " + request.uri() + " although response status code was " + statusCode+ ". Assuming lock not present");
+					return LockStatus.UNKNOWN;
+				}
+				
 				long now = System.currentTimeMillis();
 				long touched = lockRecord.getTouched().getTime();
 				

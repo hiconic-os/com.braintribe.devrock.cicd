@@ -16,11 +16,15 @@ public interface BuildArtifacts extends MultiThreadedStepRequest, HasArtifactHan
 	String codebaseAnalysis = "codebaseAnalysis";
 	String codebaseDependencyAnalysis = "codebaseDependencyAnalysis";
 	String candidateInstall = "candidateInstall";
+	String generateOptionals = "generateOptionals";
 	String skip = "skip";
-	
+
 	Boolean getCandidateInstall();
 	void setCandidateInstall(Boolean candidateInstall);
-	
+
+	boolean getGenerateOptionals();
+	void setGenerateOptionals(boolean generateOptionals);
+
 	@Mandatory
 	CodebaseAnalysis getCodebaseAnalysis();
 	void setCodebaseAnalysis(CodebaseAnalysis codebaseAnalysis);

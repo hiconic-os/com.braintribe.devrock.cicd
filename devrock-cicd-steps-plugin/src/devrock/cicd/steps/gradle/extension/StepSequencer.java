@@ -16,6 +16,10 @@ import org.gradle.api.UncheckedIOException;
 import com.braintribe.gm.model.reason.Maybe;
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.reflection.EntityType;
+import com.braintribe.model.generic.reflection.Property;
+import com.braintribe.model.processing.meta.cmd.builders.EntityMdResolver;
+import com.braintribe.model.processing.session.api.managed.ModelAccessory;
+import com.braintribe.utils.lcd.NullSafe;
 import com.braintribe.utils.lcd.StringTools;
 
 import devrock.cicd.steps.gradle.common.AntTaskContext;
@@ -24,6 +28,7 @@ import devrock.cicd.steps.gradle.common.GradleAntContext;
 import devrock.step.api.StepEvaluator;
 import devrock.step.framework.Steps;
 import devrock.step.model.api.StepRequest;
+import devrock.step.model.api.meta.ArgumentPropagation;
 import groovy.lang.Closure;
 
 public class StepSequencer {
@@ -54,10 +59,18 @@ public class StepSequencer {
 		if (envValue != null)
 			return envValue;
 
-		Object value = project.findProperty(name);
+		String separatedName = "." + name;
+		Object value = project.findProperty(separatedName);
 
 		if (value != null)
 			return value;
+		
+		/* Start of temporary backwards compatible direct name lookup */
+		value = project.findProperty(name);
+		
+		if (value != null)
+			return value;
+		/* End of temporary backwards compatible direct name lookup */
 
 		envName = convertPropertyNameToEnvName(name, false);
 
@@ -183,13 +196,9 @@ public class StepSequencer {
 			File outputFile = File.createTempFile("antOutput", ".log");
 
 			Map<String, String> properties = new LinkedHashMap<>();
-			for (String property : propertyPropagations) {
-				Object value = project.findProperty(property);
-				
-				if (value != null)
-					properties.put(property, value.toString());
-			}
-			
+			addPassedPropertyPropagations(properties, propertyPropagations);
+			addMdBasedPropertyPropagations(properties);
+
 			properties.put("colors", String.valueOf(useColors));
 
 			AntTaskContext taskCtx = new AntTaskContext(artifactDir, target, outputFile, properties);
@@ -199,7 +208,7 @@ public class StepSequencer {
 				gradleAntContext.executeAntTask(taskCtx);
 
 			} catch (BuildException e) {
-				taskCtx.failed = true;
+				taskCtx.buildException = e;
 				throw e;
 
 			} finally {
@@ -210,6 +219,48 @@ public class StepSequencer {
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
 		}
+	}
+
+	private void addPassedPropertyPropagations(Map<String, String> properties, String... propertyPropagations) {
+		for (String property : propertyPropagations) {
+			Object value = resolvePropertyValue(property);
+
+			if (value != null)
+				properties.put(property, value.toString());
+		}
+	}
+
+	private Object resolvePropertyValue(String propertyName) {
+		StepRequest currentRequest = evaluator.getCurrentRequest();
+
+		if (currentRequest == null)
+			return project.findProperty(propertyName);
+
+		Property p = currentRequest.entityType().getProperty(propertyName);
+		return p.get(currentRequest);
+	}
+
+	private void addMdBasedPropertyPropagations(Map<String, String> properties) {
+		StepRequest currentRequest = evaluator.getCurrentRequest();
+		if (currentRequest == null)
+			return;
+
+		ModelAccessory modelAccessory = evaluator.getModelAccessory();
+		EntityMdResolver entityMdResolver = modelAccessory.getMetaData().entity(currentRequest);
+
+		for (Property p : currentRequest.entityType().getProperties()) {
+			ArgumentPropagation ap = entityMdResolver.property(p).meta(ArgumentPropagation.T).exclusive();
+			if (ap == null)
+				continue;
+
+			Object value = p.get(currentRequest);
+			if (value == null)
+				continue;
+
+			String downstreamArgumentName = NullSafe.get(ap.getName(), p.getName());
+			properties.put(downstreamArgumentName, value.toString());
+		}
+
 	}
 
 }

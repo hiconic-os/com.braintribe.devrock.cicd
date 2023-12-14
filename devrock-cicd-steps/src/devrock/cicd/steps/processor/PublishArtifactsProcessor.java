@@ -7,7 +7,6 @@ import static com.braintribe.console.ConsoleOutputs.text;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
@@ -48,6 +47,7 @@ import com.braintribe.model.artifact.essential.PartIdentification;
 import com.braintribe.model.resource.FileResource;
 import com.braintribe.model.resource.Resource;
 import com.braintribe.model.version.Version;
+import com.braintribe.utils.lcd.LazyInitialized;
 import com.braintribe.utils.stream.api.StreamPipe;
 import com.braintribe.utils.stream.api.StreamPipes;
 import com.braintribe.wire.api.Wire;
@@ -57,6 +57,8 @@ import com.braintribe.wire.api.context.WireContextBuilder;
 import devrock.cicd.model.api.PublishArtifacts;
 import devrock.cicd.model.api.PublishArtifactsResponse;
 import devrock.cicd.model.api.reason.ArtifactIndexUpdateFailed;
+import devrock.cicd.model.api.reason.UploadArtifactsFailed;
+import devrock.cicd.steps.processing.ArtifactIndexUpdate;
 import devrock.cicd.steps.processor.locking.DistributedLocking;
 
 public class PublishArtifactsProcessor extends SpawningServiceProcessor<PublishArtifacts, PublishArtifactsResponse> {
@@ -64,7 +66,6 @@ public class PublishArtifactsProcessor extends SpawningServiceProcessor<PublishA
 	@Override
 	protected StatefulServiceProcessor spawn() { 
 		return new StatefulServiceProcessor() {
-			private RepositoryConfiguration installRepositoryConfiguration;
 			private Repository uploadRepository;
 			
 			@Override
@@ -168,146 +169,20 @@ public class PublishArtifactsProcessor extends SpawningServiceProcessor<PublishA
 					
 					List<Artifact> publishedArtifacts = resolution.getSolutions().stream().filter(a -> !a.hasFailed()).toList();
 					
-					updateArtifactIndex(artifactDeployer, resolver, publishedArtifacts);
+					LazyInitialized<Reason> collatorReason = new LazyInitialized<>(() -> Reasons.build(UploadArtifactsFailed.T).text("Failure while uploading to repository " + uploadRepository.getName()).toReason());
+					
+					Reason error = ArtifactIndexUpdate.updateArtifactIndex(uploadRepository, artifactDeployer, resolver, publishedArtifacts);
+					
+					if (error != null)
+						collatorReason.get().getReasons().add(error);
 					
 					if (resolution.hasFailed())
-						return resolution.getFailure();
+						collatorReason.get().getReasons().add(resolution.getFailure());
+					
+					if (collatorReason.isInitialized())
+						return collatorReason.get();
 					
 					return null;
-				}
-			}
-			
-			private Lock acquireLockArtifactUpdateLock(MavenHttpRepository httpRepository) {
-				Function<String,Lock> lockManager = DistributedLocking.lockManager();
-				return lockManager.apply("update-artifact-index:" + httpRepository.getUrl());
-			}
-			
-			private Reason updateArtifactIndex(ArtifactDeployer artifactDeployer, ArtifactDataResolver resolver, List<Artifact> publishedArtifacts) {
-				if (!(uploadRepository instanceof MavenHttpRepository))
-					return null;
-				
-				Lock lock = acquireLockArtifactUpdateLock((MavenHttpRepository)uploadRepository);
-				
-				try {
-					if (!lock.tryLock(10, TimeUnit.SECONDS))
-						return Reasons.build(ArtifactIndexUpdateFailed.T).text("Could not acquire update lock").toReason();
-				} catch (InterruptedException e) {
-					throw new RuntimeException(e);
-				}
-				
-				try {
-					CompiledDependencyIdentification indexCdi = CompiledDependencyIdentification.create("meta", "artifact-index", "[1,)");
-					
-					
-					BasicDependencyResolver dependencyResolver = new BasicDependencyResolver(resolver);
-					Maybe<CompiledArtifactIdentification> caiMaybe = dependencyResolver.resolveDependency(indexCdi);
-
-					final CompiledArtifactIdentification indexCai; 
-					final ArtifactIndex artifactIndex;
-					
-					if (caiMaybe.isUnsatisfied()) {
-						if (caiMaybe.isUnsatisfiedBy(UnresolvedDependencyVersion.T)) {
-							indexCai = CompiledArtifactIdentification.create("meta", "artifact-index", "1");
-							artifactIndex = new ArtifactIndex(true);
-						}
-						else {
-							return Reasons.build(ArtifactIndexUpdateFailed.T).text("Error while retrieving existing artifact index") //
-									.cause(caiMaybe.whyUnsatisfied()).toReason();
-						}
-					}
-					else {
-						indexCai = caiMaybe.get();
-
-						Maybe<ArtifactIndex> indexMaybe = downloadIndex(indexCai, resolver);
-						
-						if (indexMaybe.isUnsatisfied()) {
-							if (indexMaybe.isUnsatisfiedBy(NotFound.T)) {
-								artifactIndex = new ArtifactIndex(true);
-							}
-							else {
-								return Reasons.build(ArtifactIndexUpdateFailed.T).text("Error while retrieving existing artifact index") //
-										.cause(indexMaybe.whyUnsatisfied()).toReason();
-							}
-						}
-						else {
-							Version version = indexCai.getVersion();
-							version.setMajor(version.getMajor() + 1);
-							
-							artifactIndex = indexMaybe.get();
-						}
-					}
-					
-					for (Artifact artifact: publishedArtifacts) {
-						artifactIndex.update(artifact.asString());
-					}
-					
-					Reason error = uploadIndex(indexCai, artifactDeployer, artifactIndex);
-					
-					if (error != null) {
-						return Reasons.build(ArtifactIndexUpdateFailed.T).text("Error while updating artifact index") //
-								.cause(error).toReason();
-					}
-					
-					return null;
-				}
-				finally {
-					lock.unlock();
-				}
-			}
-			
-			private Reason uploadIndex(CompiledArtifactIdentification indexCai, ArtifactDeployer deployer, ArtifactIndex index) {
-				StreamPipe pipe = StreamPipes.fileBackedFactory().newPipe("artifact-index");
-				
-				try (OutputStream out = new GZIPOutputStream(pipe.openOutputStream())) {
-					index.write(out);
-				}
-				catch (IOException e) {
-					return Reasons.build(IoError.T).text("Error while writing " + indexCai.asString()).cause(InternalError.from(e)).toReason();
-				}
-				
-				Resource resource = Resource.createTransient(pipe::openInputStream);
-				resource.setName("artifact-index.gzip");
-				
-				PartIdentification partIdentification = PartIdentification.create("gzip");
-				
-				Artifact artifact = Artifact.T.create();
-				artifact.setGroupId(indexCai.getGroupId());
-				artifact.setArtifactId(indexCai.getArtifactId());
-				artifact.setVersion(indexCai.getVersion().asString());
-				
-				Part part = Part.T.create();
-				part.setType(partIdentification.getType());
-				part.setResource(resource);
-				
-				artifact.getParts().put(partIdentification.asString(), part);
-				
-				ArtifactResolution resolution = deployer.deploy(artifact);
-				
-				if (resolution.hasFailed())
-					return resolution.getFailure();
-				
-				return null;
-			}
-			
-			private Maybe<ArtifactIndex> downloadIndex(CompiledArtifactIdentification indexCai, ArtifactDataResolver resolver) {
-				Maybe<ArtifactDataResolution> indexPartMaybe = resolver.resolvePart(indexCai, PartIdentification.create("gzip"));
-				
-				if (indexPartMaybe.isUnsatisfied()) {
-					return indexPartMaybe.whyUnsatisfied().asMaybe();
-				}
-				
-				ArtifactDataResolution partResolution = indexPartMaybe.get();
-				Maybe<InputStream> inMaybe = partResolution.openStream();
-				
-				if (inMaybe.isUnsatisfied()) {
-					return inMaybe.whyUnsatisfied().asMaybe();
-				}
-				
-				try (InputStream in = new GZIPInputStream(inMaybe.get())) {
-					return Maybe.complete(ArtifactIndex.read(in, false));
-				}
-				catch (IOException e) {
-					return Reasons.build(IoError.T).text("Error while reading " + indexCai.asString()).cause(InternalError.from(e)).toMaybe();
 				}
 			}
 		};

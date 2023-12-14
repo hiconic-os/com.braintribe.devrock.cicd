@@ -6,6 +6,7 @@ import java.util.stream.Stream;
 
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
+import org.gradle.api.logging.configuration.ShowStacktrace;
 
 import com.braintribe.console.AbstractAnsiConsole;
 import com.braintribe.console.ConsoleConfiguration;
@@ -17,8 +18,22 @@ public class DevrockCicdStepsPlugin implements Plugin<Project> {
 	
 	private GradleAntContext antCtx;
 
+	@Override
+	public void apply(Project project) {
+		installConsole(project);
+		installDevrockAntTasks(project);
+		installExtension(project);
+	}
+
+	private void installConsole(Project project) {
+		ConsoleConfiguration.install(new SysOutConsole(useColors(project)));
+	}
+
+	private void installExtension(Project project) {
+		project.getExtensions().create("steps", StepSequencer.class, project, antCtx, useColors(project));
+	}
+
 	private boolean useColors(Project project) {
-		
 		Object value = project.findProperty("colors");
 		
 		if (value != null)
@@ -32,17 +47,6 @@ public class DevrockCicdStepsPlugin implements Plugin<Project> {
 		return true;
 	}
 	
-	@Override
-	public void apply(Project project) {
-		installConsole(project);
-		installDevrockAntTasks(project);
-		installExtension(project);
-	}
-
-	private void installExtension(Project project) {
-		project.getExtensions().create("steps", StepSequencer.class, project, antCtx, useColors(project));
-	}
-
 	private void installDevrockAntTasks(Project project) {
 		String devrockSdkRootVar = System.getenv("DEVROCK_SDK_HOME");
 	    File devrockSdkRoot = devrockSdkRootVar != null? //
@@ -61,7 +65,7 @@ public class DevrockCicdStepsPlugin implements Plugin<Project> {
 			// TODO: set repository configuration variable in order to use SDKs repository-configuration-devrock.yaml
 			// env var name -> REPOSITORY_CONFIGURATION_DEVROCK_ANT_TASKS
 			
-			antCtx = new GradleAntContext(classpath, antLibsFolder, antCustomLibsFolder);
+			antCtx = new GradleAntContext(classpath, antLibsFolder, antCustomLibsFolder, shouldShowStacktrace(project));
 			//antCtx.removeGradleLoggerFromAnt();
 			antCtx.taskdef("antlib:com.braintribe.build.ant.tasks", "com/braintribe/build/ant/tasks/antlib.xml");
 			antCtx.taskdef("net/sf/antcontrib/antlib.xml");
@@ -69,8 +73,8 @@ public class DevrockCicdStepsPlugin implements Plugin<Project> {
 		}
 	}
 
-	private void installConsole(Project project) {
-		ConsoleConfiguration.install(new SysOutConsole(useColors(project)));
+	private boolean shouldShowStacktrace(Project project) {
+		return project.getGradle().getStartParameter().getShowStacktrace() != ShowStacktrace.INTERNAL_EXCEPTIONS;
 	}
 
 	class SysOutConsole extends AbstractAnsiConsole  {

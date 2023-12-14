@@ -33,7 +33,6 @@ import com.braintribe.gm.model.reason.essential.InvalidArgument;
 import com.braintribe.gm.model.reason.essential.NotFound;
 import com.braintribe.gm.model.reason.essential.ParseError;
 import com.braintribe.gm.model.reason.essential.UnsupportedOperation;
-import com.braintribe.logging.Logger;
 import com.braintribe.model.generic.GMF;
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.reflection.EntityType;
@@ -49,21 +48,21 @@ import com.braintribe.utils.FileTools;
 import com.braintribe.utils.IOTools;
 import com.braintribe.utils.StringTools;
 import com.braintribe.utils.lcd.LazyInitialized;
+import com.braintribe.utils.lcd.NullSafe;
 import com.braintribe.ve.impl.StandardEnvironment;
 
 import devrock.step.api.StepExchangeContext;
 import devrock.step.model.api.ExchangeProperties;
 import devrock.step.model.api.meta.ArgumentMapping;
-import devrock.step.model.api.meta.ExchangeConfiguration;
 import devrock.step.model.api.meta.ExchangeClassifier;
+import devrock.step.model.api.meta.ExchangeConfiguration;
 import devrock.step.model.api.meta.ExternalArgument;
 import devrock.step.model.api.meta.Intricate;
 import devrock.step.model.api.meta.ProjectDir;
 
 public class StepExchangeContextImpl implements StepExchangeContext {
 	
-	private static final Logger logger = Logger.getLogger(StepExchangeContextImpl.class);
-	
+	private static final ExternalArgument defaultExternalArgument = ExternalArgument.T.create();
 	private final File configFolder;
 	
 	private static record ConfigKey (EntityType<?> type, String classifier) {}
@@ -72,7 +71,7 @@ public class StepExchangeContextImpl implements StepExchangeContext {
 	private final ModelAccessory modelAccessory;
 	private final Function<String, Object> properties;
 	private final File projectDir;
-	private Map<Class<? extends TypeSafeAttribute<?>>, Object> services = new ConcurrentHashMap<>();
+	private final Map<Class<? extends TypeSafeAttribute<?>>, Object> services = new ConcurrentHashMap<>();
 	
 	public StepExchangeContextImpl(File projectDir, File configFolder, ModelAccessory modelAccessory, Function<String, Object> properties) {
 		this.projectDir = projectDir;
@@ -317,19 +316,24 @@ public class StepExchangeContextImpl implements StepExchangeContext {
 	}
 	
 	private Maybe<?> resolveValue(GenericEntity containerEntity, Property property) {
-		ArgumentMapping argumentMapping = resolveArgumentMapping(containerEntity, property);
-		
-		if (argumentMapping == null) {
+		if (property.getType().isEntity()) {
 			return resolveFromExchange(containerEntity, property);
 		}
-		else if (argumentMapping instanceof ProjectDir) {
-			return Maybe.complete(projectDir.getAbsolutePath());
-		}
-		else if (argumentMapping instanceof ExternalArgument) {
-			return getArgumentValue(containerEntity.entityType(), (ExternalArgument)argumentMapping, property);
+		
+		if (property.getType().isScalar()) {
+			ArgumentMapping argumentMapping = resolveArgumentMapping(containerEntity, property);
+			
+			if (argumentMapping instanceof ProjectDir) {
+				return Maybe.complete(projectDir.getAbsolutePath());
+			}
+			else if (argumentMapping instanceof ExternalArgument) {
+				return getArgumentValue(containerEntity.entityType(), (ExternalArgument)argumentMapping, property);
+			}
+			
+			return Reasons.build(UnsupportedOperation.T).text("Unsupported ArgumentMapping metadata type " + argumentMapping.type().getTypeSignature()).toMaybe();
 		}
 		
-		return Reasons.build(UnsupportedOperation.T).text("Unsupported ArgumentMapping metadata type " + argumentMapping.type().getTypeSignature()).toMaybe();
+		return Reasons.build(NotFound.T).text("Property not found").toMaybe();
 	}
 	
 	private Maybe<? extends GenericEntity> resolveFromExchange(GenericEntity containerEntity, Property property) {
@@ -351,9 +355,12 @@ public class StepExchangeContextImpl implements StepExchangeContext {
 
 	private ArgumentMapping resolveArgumentMapping(GenericEntity containerEntity, Property property) {
 		if (modelAccessory == null)
-			return null;
+			return defaultExternalArgument;
 		
-		return modelAccessory.getMetaData().entity(containerEntity).property(property).meta(ArgumentMapping.T).exclusive();
+		return NullSafe.get(//
+				modelAccessory.getMetaData().entity(containerEntity).property(property).meta(ArgumentMapping.T).exclusive(), //
+				defaultExternalArgument //
+		);
 	}
 	
 	private Maybe<Object> getArgumentValue(EntityType<?> entityType, ExternalArgument argument, Property property) {
@@ -437,23 +444,6 @@ public class StepExchangeContextImpl implements StepExchangeContext {
 		}
 	}
 
-	private String getExternalArgumentName(EntityType<?> type, Property property) {
-		if (modelAccessory == null)
-			return null;
-		
-		ExternalArgument externalArgument = modelAccessory.getMetaData().entityType(type).property(property).meta(ExternalArgument.T).exclusive();
-		
-		if (externalArgument == null)
-			return null;
-			
-		String name = externalArgument.getName();
-		
-		if (name != null)
-			return name;
-		
-		return property.getName();
-	}
-	
 	private String getExchangeClassifier(EntityType<?> type, Property property) {
 		if (modelAccessory == null)
 			return null;
@@ -489,4 +479,10 @@ public class StepExchangeContextImpl implements StepExchangeContext {
 	public <A extends TypeSafeAttribute<V>, V> V getService(Class<A> attribute, Supplier<V> defaultValueSupplier) {
 		return (V) services.computeIfAbsent(attribute, k -> defaultValueSupplier.get());
 	}
+
+	@Override
+	public ModelAccessory getModelAccessory() {
+		return modelAccessory;
+	}
+
 }

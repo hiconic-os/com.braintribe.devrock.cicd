@@ -541,7 +541,7 @@ public class AnalyzeCodebaseProcessor extends SpawningServiceProcessor<AnalyzeCo
 			List<LocalArtifact> unpublishedArtifactCandidates = new ArrayList<>();
 			
 			for (LocalArtifact candidate : localArtifactsByFolderName.values()) {
-				if (!candidate.getTest() && !candidate.getIntegrationTest())
+				if (candidate.getBuildReason() == BuildReason.NONE && !candidate.getTest() && !candidate.getIntegrationTest())
 					unpublishedArtifactCandidates.add(candidate);
 			}
 			
@@ -552,14 +552,9 @@ public class AnalyzeCodebaseProcessor extends SpawningServiceProcessor<AnalyzeCo
 			
 			Map<LocalArtifact, Boolean> availability = availabilityMaybe.get();
 			
-			for (LocalArtifact localArtifact: localArtifactsByFolderName.values()) {
-				
-				if (localArtifact.getBuildReason() == BuildReason.NONE) {
-					if (!availability.get(localArtifact)) {
-						localArtifact.setBuildReason(BuildReason.UNPUBLISHED);
-					}
-				}
-				
+			for (LocalArtifact localArtifact: unpublishedArtifactCandidates) {
+				if (!availability.get(localArtifact))
+					localArtifact.setBuildReason(BuildReason.UNPUBLISHED);
 			}
 			
 			return null;

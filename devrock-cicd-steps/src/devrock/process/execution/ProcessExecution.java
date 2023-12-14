@@ -22,7 +22,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import com.braintribe.gm.model.reason.Maybe;
-import com.braintribe.gm.model.reason.Reason;
 import com.braintribe.gm.model.reason.Reasons;
 import com.braintribe.gm.model.reason.essential.UnsupportedOperation;
 import com.braintribe.utils.IOTools;

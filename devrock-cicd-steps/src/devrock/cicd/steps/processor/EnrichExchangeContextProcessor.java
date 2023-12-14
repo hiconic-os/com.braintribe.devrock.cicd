@@ -25,7 +25,12 @@ public class EnrichExchangeContextProcessor implements ReasonedServiceProcessor<
 	public Maybe<? extends EnrichExchangeContextResponse> processReasoned(ServiceRequestContext context,
 			EnrichExchangeContext request) {
 		
-		Reason error = enhancePropertiesFromGitCommitMessage(context, request);
+		Reason error = enhanceFromGitCommitMessage(context, request);
+		
+		if (error != null)
+			return error.asMaybe();
+		
+		error = enhanceFromCommentInput(context, request);
 		
 		if (error != null)
 			return error.asMaybe();
@@ -36,7 +41,7 @@ public class EnrichExchangeContextProcessor implements ReasonedServiceProcessor<
 
 	}
 	
-	private Reason enhancePropertiesFromGitCommitMessage(ServiceRequestContext context, EnrichExchangeContext request) {
+	private Reason enhanceFromGitCommitMessage(ServiceRequestContext context, EnrichExchangeContext request) {
 		File gitPath = new File(request.getGitPath());
 		
 		// Not being associated with git is an expected state as you initially might start just with a unassociated local folder
@@ -49,7 +54,21 @@ public class EnrichExchangeContextProcessor implements ReasonedServiceProcessor<
 			return Reasons.build(GitAnalysisFailure.T).text("Could not determine comment of latest commit for request customization").toReason();
 		}
 		
-		Maybe<List<Pair<GenericEntity, String>>> entitiesMaybe = CommentYamlInjectionParser.extractYamlSections(commentMaybe.get());
+		return enhance(context, commentMaybe.get());
+	}
+	
+	private Reason enhanceFromCommentInput(ServiceRequestContext context, EnrichExchangeContext request) {
+		
+		String commentInput = request.getCommentInput();
+		
+		if (commentInput == null || commentInput.isBlank())
+			return null;
+		
+		return enhance(context, commentInput);
+	}
+
+	private Reason enhance(ServiceRequestContext context, String text) {
+		Maybe<List<Pair<GenericEntity, String>>> entitiesMaybe = CommentYamlInjectionParser.extractYamlSections(text);
 		
 		if (entitiesMaybe.isUnsatisfied())
 			return entitiesMaybe.whyUnsatisfied();
@@ -57,7 +76,7 @@ public class EnrichExchangeContextProcessor implements ReasonedServiceProcessor<
 		List<Pair<GenericEntity, String>> exchangeEntities = entitiesMaybe.get();
 		
 		StepExchangeContext exchangeContext = context.findOrNull(StepExchangeContextAttribute.class);
-
+		
 		for (Pair<GenericEntity, String> entry: exchangeEntities) {
 			GenericEntity entity = entry.first();
 			exchangeContext.store(entity.entityType(), entry.second(), entity);	

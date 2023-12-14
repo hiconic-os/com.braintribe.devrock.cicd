@@ -8,13 +8,13 @@ import com.braintribe.gm.model.reason.Reason;
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.GenericModelType;
+import com.braintribe.model.processing.session.api.managed.ModelAccessory;
 
 /**
  * A StepContext allows to acquire 
- * @param <E>
- * @param type
  */
 public interface StepExchangeContext {
+
 	void makeOrCleanExchangeFolder();
 	
 	<V> Maybe<V> getProperty(GenericModelType type, String name);
@@ -36,4 +36,7 @@ public interface StepExchangeContext {
 	void storeProperties(GenericEntity data);
 	
 	<A extends TypeSafeAttribute<V>, V> V getService(Class<A> attribute, Supplier<V> defaultValueSupplier);
+
+	ModelAccessory getModelAccessory();
+
 }

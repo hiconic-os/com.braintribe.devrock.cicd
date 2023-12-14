@@ -5,6 +5,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.assertj.core.api.Assertions;
 import org.junit.Before;
@@ -136,7 +138,9 @@ public class CicdStepsTest {
 		File groupDir = new File("res/codebase");
 		
 		String customOrigin = "origin-custom";
-		StepEvaluator evaluator = Steps.evaluator(groupDir, exchangeFolder, n -> n.equals("baseRemote")? customOrigin: null);
+		
+		Map<String, Object> props = Map.of("baseRemote", customOrigin);
+		StepEvaluator evaluator = Steps.evaluator(groupDir, exchangeFolder, props::get);
 		
 		AnalyzeCodebase request = AnalyzeCodebase.T.create();
 		evaluator.evaluateOrThrow(request);

@@ -47,4 +47,9 @@ public interface LocalArtifact extends GenericEntity {
 	
 	boolean getIntegrationTest();
 	void setIntegrationTest(boolean integrationTest);
+	
+	@Override
+	default String asString() {
+		return getIdentification();
+	}
 }

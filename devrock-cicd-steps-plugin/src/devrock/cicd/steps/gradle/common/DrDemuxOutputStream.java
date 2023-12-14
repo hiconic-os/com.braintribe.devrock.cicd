@@ -46,14 +46,12 @@ public class DrDemuxOutputStream extends OutputStream {
 
 	private final Map<ThreadGroup, DemuxOutputStream> streams = new ConcurrentHashMap<>();
 
-	private final ThreadGroup mainThreadGroup;
 	private final OutputStream mainOs;
 
 	private final boolean isErrorStream;
 
 	public DrDemuxOutputStream(OutputStream mainOs, boolean isErrorStream) {
 		this.isErrorStream = isErrorStream;
-		this.mainThreadGroup = resolveThreadGroup();
 		this.mainOs = mainOs;
 	}
 

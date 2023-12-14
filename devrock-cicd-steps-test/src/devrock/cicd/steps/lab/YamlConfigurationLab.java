@@ -1,13 +1,4 @@
-package devrock.cicd.steps.test;
-
-import java.io.File;
-
-import com.braintribe.gm.config.yaml.YamlConfigurations;
-import com.braintribe.gm.model.reason.Maybe;
-import com.braintribe.model.processing.vde.clone.async.EntityCollector;
-
-import devrock.cicd.model.api.data.CodebaseDependencyAnalysis;
-import devrock.cicd.steps.test.model.Node;
+package devrock.cicd.steps.lab;
 
 public class YamlConfigurationLab {
 	public static void main(String[] args) {

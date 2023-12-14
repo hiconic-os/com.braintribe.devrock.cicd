@@ -5,6 +5,7 @@ import java.util.function.Consumer;
 import org.gradle.api.GradleException;
 
 import com.braintribe.gm.model.reason.Reason;
+import com.braintribe.gm.model.reason.essential.InternalError;
 import com.braintribe.logging.Logger;
 import com.braintribe.model.generic.reflection.EntityType;
 
@@ -42,21 +43,42 @@ public class RequestStepConfiguration<S extends StepRequest> extends StepConfigu
 	@SuppressWarnings("serial")
 	public Closure<?> getRunnable() {
         return new Closure<Object>(null) {
+
         	@Override
         	public Object call() {
                 S step = type.create();
 
-                if (initializer != null) {
+                if (initializer != null)
                 	initializer.accept(step);
-                }
 
                 Reason reason = evaluateAndDoCleanup(step);
-                if (reason != null) {
-                    throw new GradleException(reason.stringify());
-                }
-
-                return null;
+                if (reason == null)
+                	return null;
+                else
+                	throw toException(reason);
         	}
+
+			private GradleException toException(Reason reason) {
+                Throwable cause = extractFirstCause(reason);
+
+                if (cause != null)
+                	return new GradleException(reason.stringify(), cause);
+                else
+                	return new GradleException(reason.stringify());
+			}
+
+			private Throwable extractFirstCause(Reason reason) {
+				if (reason instanceof InternalError ie)
+					return ie.getJavaException();
+
+				for (Reason causeReason : reason.getReasons()) {
+					Throwable cause = extractFirstCause(causeReason);
+					if (cause != null)
+						return cause;
+				}
+
+				return null;
+			}
 
 			private Reason evaluateAndDoCleanup(S step) {
 				try {
@@ -69,6 +91,7 @@ public class RequestStepConfiguration<S extends StepRequest> extends StepConfigu
                 	}
                 }
 			}
+
         };
     }
 }

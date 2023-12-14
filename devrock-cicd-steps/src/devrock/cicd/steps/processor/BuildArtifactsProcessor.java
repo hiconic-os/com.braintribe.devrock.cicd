@@ -298,7 +298,7 @@ public class BuildArtifactsProcessor extends SpawningServiceProcessor<BuildArtif
 						AnalysisArtifact analysisArtifact = AnalysisArtifact.T.create();
 						analysisArtifact.setGroupId(vai.getGroupId());
 						analysisArtifact.setArtifactId(vai.getArtifactId());
-						analysisArtifact.setVersion(vai.getVersion());
+						analysisArtifact.setVersion(version.asString());
 						analysisArtifact.setPackaging(localArtifact.getPackaging());
 						
 						enrichments.put(analysisArtifact, new ArrayList<>(parts.values()));

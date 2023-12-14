@@ -62,7 +62,12 @@ public class GitTools {
 	}
 	
 	public static Reason gitPush(File path, String remote, String targetBranch) {
-		Maybe<String> resultMaybe = ProcessExecution.runCommand(path, "git", "push", remote, "HEAD:" + targetBranch);
+		final Maybe<String> resultMaybe;
+		
+		if (targetBranch != null)
+			resultMaybe = ProcessExecution.runCommand(path, "git", "push", remote, "HEAD:" + targetBranch);
+		else
+			resultMaybe = ProcessExecution.runCommand(path, "git", "push", remote);
 		
 		if (resultMaybe.isUnsatisfied())
 			return resultMaybe.whyUnsatisfied();
@@ -108,7 +113,7 @@ public class GitTools {
 	}
 	
 	public static List<File> getChangedFolders(File path, String hash) {
-		Maybe<String> resultMaybe = ProcessExecution.runCommand(path, "git", "diff", "-r", hash, "--name-status");
+		Maybe<String> resultMaybe = ProcessExecution.runCommand(path, "git", "diff", "-r", hash, "--name-status", "--no-renames");
 		
 		BufferedReader reader = new BufferedReader(new StringReader(resultMaybe.get()));
 		
@@ -123,9 +128,10 @@ public class GitTools {
 				
 				if (line.isEmpty())
 					continue;
-				
+
+				// M/A/D	dir/path/file
 				char mode = line.charAt(0);
-				
+
 				Path itemPath = Paths.get(line.substring(1).trim());
 				String itemName = itemPath.getName(0).toString();
 				boolean isRootLevel = itemPath.getNameCount() == 1;

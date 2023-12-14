@@ -3,6 +3,8 @@ package devrock.cicd.steps.gradle.common;
 import java.io.File;
 import java.util.Map;
 
+import org.apache.tools.ant.BuildException;
+
 /**
  * @author peter.gazdik
  */
@@ -14,7 +16,7 @@ public class AntTaskContext {
 	public final Map<String, String> properties;
 
 	public long durationMs;
-	public boolean failed;
+	public BuildException buildException;
 
 	public AntTaskContext(File artifactDir, String target, File outputFile, Map<String, String> properties) {
 		this.artifactDir = artifactDir;
