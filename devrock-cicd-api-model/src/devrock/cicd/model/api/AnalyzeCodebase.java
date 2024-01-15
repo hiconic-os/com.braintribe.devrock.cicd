@@ -11,35 +11,41 @@ import com.braintribe.model.service.api.ServiceRequest;
 import devrock.step.model.api.StepRequest;
 
 public interface AnalyzeCodebase extends StepRequest, EnvironmentAware {
+
 	EntityType<AnalyzeCodebase> T = EntityTypes.T(AnalyzeCodebase.class);
-	
+
 	String buildArtifacts = "buildArtifacts";
 	String path = "path";
 	String baseBranch = "baseBranch";
 	String baseHash = "baseHash";
 	String baseRemote = "baseRemote";
 	String detectUnpublishedArtifacts = "detectUnpublishedArtifacts";
-	
+	String allowReleaseViewBuilding = "allowReleaseViewBuilding";
+
 	String getBaseBranch();
 	void setBaseBranch(String baseBranch);
-	
+
 	String getBaseHash();
 	void setBaseHash(String baseHash);
-	
+
 	@Initializer("'origin'")
 	String getBaseRemote();
 	void setBaseRemote(String baseRemote);
-	
+
 	@Mandatory
 	String getPath();
 	void setPath(String path);
-	
+
 	String getBuildArtifacts();
 	void setBuildArtifacts(String buildArtifacts);
-	
+
 	boolean getDetectUnpublishedArtifacts();
 	void setDetectUnpublishedArtifacts(boolean detectUnpublishedArtifacts);
+
+	boolean getAllowReleaseViewBuilding();
+	void setAllowReleaseViewBuilding(boolean allowReleaseViewBuilding);
 	
 	@Override
 	EvalContext<? extends AnalyzeCodebaseResponse> eval(Evaluator<ServiceRequest> evaluator);
+
 }

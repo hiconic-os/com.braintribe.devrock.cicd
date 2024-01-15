@@ -78,10 +78,10 @@ public class AnalyzeCodebaseProcessor extends SpawningServiceProcessor<AnalyzeCo
 	
 	private class StatefulCodebaseAnalysis extends StatefulServiceProcessor {
 		
-		private CodebaseAnalysis codebaseAnalysis = CodebaseAnalysis.T.create();
+		private final CodebaseAnalysis codebaseAnalysis = CodebaseAnalysis.T.create();
 		private CodebaseDependencyAnalysis dependencyAnalysis;
-		private GitContext gitContext = GitContext.T.create();
-		private Map<String, LocalArtifact> localArtifactsByFolderName = new TreeMap<>();
+		private final GitContext gitContext = GitContext.T.create();
+		private final Map<String, LocalArtifact> localArtifactsByFolderName = new TreeMap<>();
 		private File codebasePath;
 		private boolean isGitAssociated;
 
@@ -354,6 +354,9 @@ public class AnalyzeCodebaseProcessor extends SpawningServiceProcessor<AnalyzeCo
 					else if (localArtifact.getIntegrationTest()) {
 						localArtifact.setBuildReason(BuildReason.NONE);
 					}
+					else if (localArtifact.getReleaseView() && !request.getAllowReleaseViewBuilding()) {
+						localArtifact.setBuildReason(BuildReason.NONE);
+					}
 					else {
 						builds.add(localArtifact);
 					}
@@ -455,9 +458,6 @@ public class AnalyzeCodebaseProcessor extends SpawningServiceProcessor<AnalyzeCo
 					return localArtifactMaybe.whyUnsatisfied();
 				
 				LocalArtifact localArtifact = localArtifactMaybe.get();
-				localArtifact.setBuildReason(BuildReason.NONE);
-				
-				classifyArtifact(localArtifact);
 				
 				localArtifactsByFolderName.put(localArtifact.getFolderName(), localArtifact);
 			}
@@ -465,7 +465,7 @@ public class AnalyzeCodebaseProcessor extends SpawningServiceProcessor<AnalyzeCo
 			return null;
 		}
 		
-		private void classifyArtifact(LocalArtifact localArtifact) {
+		private void classifyArtifact(LocalArtifact localArtifact, CompiledArtifact ca) {
 			String packaging = Optional.ofNullable(localArtifact.getPackaging()).map(String::toLowerCase).orElse("jar");
 			
 			switch (packaging) {
@@ -474,6 +474,7 @@ public class AnalyzeCodebaseProcessor extends SpawningServiceProcessor<AnalyzeCo
 			case "bundle":
 			case "zip":
 				localArtifact.setBundle(true);
+				break;
 			default:
 				break;
 			}
@@ -486,7 +487,9 @@ public class AnalyzeCodebaseProcessor extends SpawningServiceProcessor<AnalyzeCo
 			else if (artifactId.endsWith("-test")) {
 				localArtifact.setTest(true);
 			}
-
+			else if ("true".equals( ca.getProperties().get("release-view"))) {
+				localArtifact.setReleaseView(true);
+			}
 		}
 
 		private Maybe<LocalArtifact> readLocalArtifact(File pomFile) {
@@ -500,6 +503,8 @@ public class AnalyzeCodebaseProcessor extends SpawningServiceProcessor<AnalyzeCo
 			CompiledArtifact ca = caiMaybe.get();
 			LocalArtifact localArtifact = buildLocalArtifact(folder, ca);
 			
+			classifyArtifact(localArtifact, ca);
+
 			return Maybe.complete(localArtifact);
 		}
 		
@@ -510,6 +515,7 @@ public class AnalyzeCodebaseProcessor extends SpawningServiceProcessor<AnalyzeCo
 			localArtifact.setArtifactIdentification(vai);
 			localArtifact.setIdentification(vai.asString());
 			localArtifact.setPackaging(ca.getPackaging());
+			localArtifact.setBuildReason(BuildReason.NONE);
 			return localArtifact;
 		}
 		

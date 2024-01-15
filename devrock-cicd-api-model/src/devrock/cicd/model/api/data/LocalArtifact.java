@@ -14,6 +14,7 @@ public interface LocalArtifact extends GenericEntity {
 	String buildReason = "buildReason";
 	String packaging = "packaging";
 	String integrationTest = "integrationTest";
+	String releaseView = "releaseView";
 	String test = "test";
 	String bundle = "bundle";
 	String commitHash = "commitHash";
@@ -47,7 +48,10 @@ public interface LocalArtifact extends GenericEntity {
 	
 	boolean getIntegrationTest();
 	void setIntegrationTest(boolean integrationTest);
-	
+
+	boolean getReleaseView();
+	void setReleaseView(boolean releaseView);
+
 	@Override
 	default String asString() {
 		return getIdentification();
