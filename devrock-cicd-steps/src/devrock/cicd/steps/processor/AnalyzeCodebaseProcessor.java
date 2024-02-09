@@ -703,6 +703,9 @@ public class AnalyzeCodebaseProcessor extends SpawningServiceProcessor<AnalyzeCo
 			for (AnalysisDependency dependency : artifact.getDependers()) {
 				AnalysisArtifact depender = dependency.getDepender();
 				
+				if (depender == null)
+					continue;
+				
 				if (!dependers.add(depender))
 					continue;
 				
