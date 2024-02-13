@@ -13,7 +13,6 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -94,29 +93,24 @@ public class AnalyzeCodebaseProcessor extends SpawningServiceProcessor<AnalyzeCo
 			initializeGitContext();
 			
 			Reason error = findLocalArtifacts(codebasePath);
-			
 			if (error != null)
 				return error.asMaybe();
 			
 			identifyCodebase();
 
 			error = attachCommitHashesIfSuitable();
-			
 			if (error != null)
 				return error.asMaybe();
 			
 			error = resolveCodebaseDependencies();
-			
 			if (error != null)
 				return error.asMaybe();
 			
 			error = determineBuildArtifacts();
-			
 			if (error != null)
 				return error.asMaybe();
 			
 			error = determineUnpublishedArtifacts();
-
 			if (error != null)
 				return error.asMaybe();
 			
@@ -532,7 +526,7 @@ public class AnalyzeCodebaseProcessor extends SpawningServiceProcessor<AnalyzeCo
 			if (error != null)
 				return error;
 			
-			error = determineChangedBundleArtifacts();
+			error = markChangedBundleArtifacts();
 			
 			if (error != null)
 				return error;
@@ -627,30 +621,28 @@ public class AnalyzeCodebaseProcessor extends SpawningServiceProcessor<AnalyzeCo
 			return null;
 		}
 
-		private Reason determineChangedBundleArtifacts() {
-			List<LocalArtifact> bundleArtifacts = new ArrayList<>();
+		private Reason markChangedBundleArtifacts() {
+			List<LocalArtifact> unchangedBundles = new ArrayList<>();
 			List<LocalArtifact> changedArtifacts = new ArrayList<>();
 			
 			for (LocalArtifact localArtifact: localArtifactsByFolderName.values()) {
-				if (localArtifact.getBuildReason() != BuildReason.NONE) {
-					if (localArtifact.getBundle())
-						bundleArtifacts.add(localArtifact);
-				}
-				else {
+				if (localArtifact.getBuildReason() != BuildReason.NONE) 
 					changedArtifacts.add(localArtifact);
-				}
+
+				else if (localArtifact.getBundle())
+						unchangedBundles.add(localArtifact);
 			}
 			
-			if (bundleArtifacts.isEmpty())
+			if (unchangedBundles.isEmpty())
 				return null;
 			
-			return determineChangedBundleArtifacts(changedArtifacts, bundleArtifacts);
+			return markChangedBundleArtifacts(changedArtifacts, unchangedBundles);
 		}
 
-		private Reason determineChangedBundleArtifacts(Collection<LocalArtifact> changedArtifacts, Collection<LocalArtifact> bundleArtifacts) {
+		private Reason markChangedBundleArtifacts(Collection<LocalArtifact> changedArtifacts, Collection<LocalArtifact> unchangedBundles) {
 			List<LocalArtifact> bundlersWithSolutionHashChange = new ArrayList<>();
 			try (SolutionHashResolver solutionHashResolver = new SolutionHashResolver(changedArtifacts, codebasePath)) {
-				for (LocalArtifact localArtifact: bundleArtifacts) {
+				for (LocalArtifact localArtifact: unchangedBundles) {
 					Maybe<Boolean> changedMaybe = solutionHashResolver.hasSolutionHashChange(localArtifact);
 					
 					if (changedMaybe.isUnsatisfied())
@@ -666,41 +658,31 @@ public class AnalyzeCodebaseProcessor extends SpawningServiceProcessor<AnalyzeCo
 			if (bundlersWithSolutionHashChange.isEmpty())
 				return null;
 			
-			return markDependerBundleArtifactsChanged(bundleArtifacts, bundlersWithSolutionHashChange);
+			return markDependerBundlesChanged(unchangedBundles, bundlersWithSolutionHashChange);
 		}
-		
-		private Reason markDependerBundleArtifactsChanged(Collection<LocalArtifact> bundleArtifacts, List<LocalArtifact> bundlersWithSolutionHashChange) {
-			Map<String, LocalArtifact> localArtifactIndex = new LinkedHashMap<>();
+
+		private Reason markDependerBundlesChanged(Collection<LocalArtifact> unchangedBundles, List<LocalArtifact> bundlesWithSolutionChanges) {
 			Map<String, AnalysisArtifact> artifactIndex = dependencyAnalysis.getArtifactIndex();
-			
-			// build the localArtifactIndex
-			for (LocalArtifact artifact: bundleArtifacts) {
-				localArtifactIndex.put(artifact.getArtifactIdentification().getArtifactId(), artifact);
+
+			// index unchanged bundles
+			Map<String, LocalArtifact> localBundles = new HashMap<>();
+			for (LocalArtifact localBundle: unchangedBundles) {
+				localBundles.put(localBundle.getArtifactIdentification().getArtifactId(), localBundle);
 			}
 			
 			// run through bundle artifacts with solution hash change and collect all of their dependers
 			Set<AnalysisArtifact> dependers = new HashSet<>();
-			
-			for (LocalArtifact artifact: bundlersWithSolutionHashChange) {
+			for (LocalArtifact artifact: bundlesWithSolutionChanges) {
 				AnalysisArtifact analysisArtifact = artifactIndex.get(artifact.getArtifactIdentification().getArtifactId());
 				collectDependers(analysisArtifact, dependers);
 			}
 			
 			// run through all dependers and mark bundlers with no build reason with DEPENDENCY_RESOLUTION_CHANGED
 			for (AnalysisArtifact depender: dependers) {
-				// TODO check this logic is correct; every depender of a bundle should be treated as a bundle and if not marked -> error
+				LocalArtifact la = localBundles.get(depender.getArtifactId());
 
-				String dependerAid = depender.getArtifactId();
-				LocalArtifact localArtifact = localArtifactIndex.get(dependerAid);
-
-				if (localArtifact == null)
-					return Reasons.build(ConfigurationError.T) //
-							.text("Artifact " + dependerAid + " doesn't seem to be marked as a bundle, even though it depends on some bundle.") //
-							.toReason();
-
-				if (localArtifact.getBundle() && localArtifact.getBuildReason() == BuildReason.NONE) {
-					localArtifact.setBuildReason(BuildReason.DEPENDENCY_RESOLUTION_CHANGED);
-					bundleArtifacts.add(localArtifact);
+				if (la != null && la.getBuildReason() == BuildReason.NONE) {
+					la.setBuildReason(BuildReason.DEPENDENCY_RESOLUTION_CHANGED);
 				}
 			}
 
@@ -710,7 +692,6 @@ public class AnalyzeCodebaseProcessor extends SpawningServiceProcessor<AnalyzeCo
 		private void collectDependers(AnalysisArtifact artifact, Set<AnalysisArtifact> dependers) {
 			for (AnalysisDependency dependency : artifact.getDependers()) {
 				AnalysisArtifact depender = dependency.getDepender();
-				
 				if (depender == null)
 					continue;
 				
