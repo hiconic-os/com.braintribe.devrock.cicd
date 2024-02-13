@@ -666,12 +666,10 @@ public class AnalyzeCodebaseProcessor extends SpawningServiceProcessor<AnalyzeCo
 			if (bundlersWithSolutionHashChange.isEmpty())
 				return null;
 			
-			markDependerBundleArtifactsChanged(bundleArtifacts, bundlersWithSolutionHashChange);
-			
-			return null;
+			return markDependerBundleArtifactsChanged(bundleArtifacts, bundlersWithSolutionHashChange);
 		}
 		
-		private void markDependerBundleArtifactsChanged(Collection<LocalArtifact> bundleArtifacts, List<LocalArtifact> bundlersWithSolutionHashChange) {
+		private Reason markDependerBundleArtifactsChanged(Collection<LocalArtifact> bundleArtifacts, List<LocalArtifact> bundlersWithSolutionHashChange) {
 			Map<String, LocalArtifact> localArtifactIndex = new LinkedHashMap<>();
 			Map<String, AnalysisArtifact> artifactIndex = dependencyAnalysis.getArtifactIndex();
 			
@@ -690,15 +688,25 @@ public class AnalyzeCodebaseProcessor extends SpawningServiceProcessor<AnalyzeCo
 			
 			// run through all dependers and mark bundlers with no build reason with DEPENDENCY_RESOLUTION_CHANGED
 			for (AnalysisArtifact depender: dependers) {
-				LocalArtifact localArtifact = localArtifactIndex.get(depender.getArtifactId());
-				
+				// TODO check this logic is correct; every depender of a bundle should be treated as a bundle and if not marked -> error
+
+				String dependerAid = depender.getArtifactId();
+				LocalArtifact localArtifact = localArtifactIndex.get(dependerAid);
+
+				if (localArtifact == null)
+					return Reasons.build(ConfigurationError.T) //
+							.text("Artifact " + dependerAid + " doesn't seem to be marked as a bundle, even though it depends on some bundle.") //
+							.toReason();
+
 				if (localArtifact.getBundle() && localArtifact.getBuildReason() == BuildReason.NONE) {
 					localArtifact.setBuildReason(BuildReason.DEPENDENCY_RESOLUTION_CHANGED);
 					bundleArtifacts.add(localArtifact);
 				}
 			}
+
+			return null;
 		}
-		
+
 		private void collectDependers(AnalysisArtifact artifact, Set<AnalysisArtifact> dependers) {
 			for (AnalysisDependency dependency : artifact.getDependers()) {
 				AnalysisArtifact depender = dependency.getDepender();
