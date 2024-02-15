@@ -249,7 +249,7 @@ public class AnalyzeCodebaseProcessor extends SpawningServiceProcessor<AnalyzeCo
 		}
 
 		private Reason markParentChangeAffectedArtifacts() {
-			List<AnalysisArtifact> parents = findParents(dependencyAnalysis.getResolution());
+			List<AnalysisArtifact> parents = findParents();
 			
 			Set<AnalysisArtifact> parentTerminals = new LinkedHashSet<>();
 			
@@ -292,7 +292,7 @@ public class AnalyzeCodebaseProcessor extends SpawningServiceProcessor<AnalyzeCo
 			}
 		}
 		
-		private List<AnalysisArtifact> findParents(AnalysisArtifactResolution resolution) {
+		private List<AnalysisArtifact> findParents() {
 			List<AnalysisArtifact> parents = new ArrayList<>();
 
 			for (AnalysisArtifact artifact: dependencyAnalysis.getResolution().getSolutions()) {
@@ -488,13 +488,20 @@ public class AnalyzeCodebaseProcessor extends SpawningServiceProcessor<AnalyzeCo
 
 		private Maybe<LocalArtifact> readLocalArtifact(File pomFile) {
 			File folder = pomFile.getParentFile();
+
 			Maybe<CompiledArtifact> caiMaybe = DeclaredArtifactIdentificationExtractor.extractMinimalArtifact(pomFile);
-			
-			if (caiMaybe.isUnsatisfied()) {
-				return Reasons.build(FolderArtifactIdentificationFailed.T).text("Could identify artifact from folder: " + folder.getAbsolutePath()).cause(caiMaybe.whyUnsatisfied()).toMaybe();
-			}
+			if (caiMaybe.isUnsatisfied())
+				return Reasons.build(FolderArtifactIdentificationFailed.T) //
+						.text("Could identify artifact from folder: " + folder.getAbsolutePath()) //
+						.cause(caiMaybe.whyUnsatisfied()) //
+						.toMaybe();
 			
 			CompiledArtifact ca = caiMaybe.get();
+			if (!folder.getName().equals( ca.getArtifactId()))
+				return Reasons.build(ConfigurationError.T) //
+						.text("Artifact id " + ca.getArtifactId() + " doesn't match folder: " + folder.getName()) //
+						.toMaybe();
+
 			LocalArtifact localArtifact = buildLocalArtifact(folder, ca);
 			
 			classifyArtifact(localArtifact, ca);
@@ -513,21 +520,16 @@ public class AnalyzeCodebaseProcessor extends SpawningServiceProcessor<AnalyzeCo
 			return localArtifact;
 		}
 		
-		
 		private Reason determineBuildArtifactsByChanges() {
-
 			Reason error = determineBuildArtifactsByFolderChanges();
-			
 			if (error != null)
 				return error;
 			
 			error = markParentChangeAffectedArtifacts();
-			
 			if (error != null)
 				return error;
 			
 			error = markChangedBundleArtifacts();
-			
 			if (error != null)
 				return error;
 			
