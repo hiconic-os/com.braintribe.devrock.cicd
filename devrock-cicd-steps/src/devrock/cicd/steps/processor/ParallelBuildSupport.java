@@ -7,6 +7,8 @@ import static com.braintribe.console.ConsoleOutputs.yellow;
 import static com.braintribe.utils.lcd.CollectionTools2.index;
 import static com.braintribe.utils.lcd.CollectionTools2.newConcurrentSet;
 import static com.braintribe.utils.lcd.CollectionTools2.newList;
+import static com.braintribe.utils.lcd.CollectionTools2.newMap;
+import static com.braintribe.utils.lcd.CollectionTools2.newSet;
 import static com.braintribe.utils.lcd.CollectionTools2.newTreeSet;
 import static java.util.Collections.emptySet;
 
@@ -85,6 +87,7 @@ import devrock.cicd.model.api.reason.ArtifactsBuildFailed;
 	private final int threads;
 	private final Boolean skip;
 
+
 	private ParallelBuildSupport( //
 			CodebaseAnalysis analysis, //
 			CodebaseDependencyAnalysis dependencyAnalysis, //
@@ -103,6 +106,7 @@ import devrock.cicd.model.api.reason.ArtifactsBuildFailed;
 		this.alreadyBuiltNames = newConcurrentSet(resolveSkippedSolutionNames());
 	}
 
+
 	private Map<LocalArtifact, List<LocalArtifact>> indexDependers(List<LocalArtifact> builds, CodebaseDependencyAnalysis dependencyAnalysis) {
 		Map<String, LocalArtifact> aIdToArtifact = index(builds) //
 				.by(this::getLocalArtifactId) //
@@ -119,12 +123,7 @@ import devrock.cicd.model.api.reason.ArtifactsBuildFailed;
 
 							List<LocalArtifact> result = newList();
 
-							for (AnalysisDependency dependerDependency : aa.getDependers()) {
-								AnalysisArtifact dep = dependerDependency.getDepender();
-								// null means it was a terminal dependency (e.g. -Prange=.), so there is no depender (that would represent the dot)
-								if (dep == null)
-									continue;
-
+							for (AnalysisArtifact dep : getTransitiveDependers(aa)) {
 								String depId = dep.getArtifactId();
 								LocalArtifact depLocalArtifact = aIdToArtifact.get(depId);
 								// null means it wasn't part of [builds], thus we can ignore it
@@ -136,6 +135,29 @@ import devrock.cicd.model.api.reason.ArtifactsBuildFailed;
 						}));
 	}
 
+	private final Map<AnalysisArtifact, Set<AnalysisArtifact>> transitiveDependers = newMap();
+
+	private Set<AnalysisArtifact> getTransitiveDependers(AnalysisArtifact aa) {
+		Set<AnalysisArtifact> result = transitiveDependers.get(aa);
+		if (result != null)
+			return result;
+
+		result = newSet();
+		transitiveDependers.put(aa, result);
+
+		for (AnalysisDependency dependerDependency : aa.getDependers()) {
+			AnalysisArtifact dep = dependerDependency.getDepender();
+			/* null means it was a terminal dependency (e.g. for -Prange=[xyz] xyz would have its regular dependers plus an extra representing the
+			 * [xyz] expression, which would be without an AnalysisArtifact). */
+			if (dep != null) {
+				result.add(dep);
+				result.addAll(getTransitiveDependers(dep));
+			}
+		}
+		
+		return result;
+	}
+	
 	private File getAlreadyBuiltSolutionNamesTmpFile(CodebaseAnalysis analysis) {
 		return FileTools.newTempFile("Devrock/gradle/build-" + analysis.getGroupId() + "-" + Md5Tools.getMd5(analysis.getBasePath()));
 	}
