@@ -147,7 +147,7 @@ import devrock.cicd.model.api.reason.ArtifactsBuildFailed;
 
 		for (AnalysisDependency dependerDependency : aa.getDependers()) {
 			AnalysisArtifact dep = dependerDependency.getDepender();
-			/* null means it was a terminal dependency (e.g. for -Prange=[xyz] xyz would have its regular dependers plus an extra representing the
+			/* null means it was a terminal dependency (e.g. for +range [xyz] xyz would have its regular dependers plus an extra representing the
 			 * [xyz] expression, which would be without an AnalysisArtifact). */
 			if (dep != null) {
 				result.add(dep);

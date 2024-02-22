@@ -235,7 +235,7 @@ public class GradleAntContext {
 		println("");
 		println(sequence( //
 				text("\tTO SKIP ALREADY BUILT ARTIFACTS use '"), //
-				cyan("-Pskip=true"), //
+				cyan("+skip true"), //
 				text("' PARAMETER after fixing the issue.\n\t"), //
 				text("The list of artifacts you've already built will be read from a temp file.") //
 		));
