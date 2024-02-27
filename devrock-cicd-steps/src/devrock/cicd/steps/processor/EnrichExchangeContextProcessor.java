@@ -6,14 +6,12 @@ import java.util.List;
 import com.braintribe.common.lcd.Pair;
 import com.braintribe.gm.model.reason.Maybe;
 import com.braintribe.gm.model.reason.Reason;
-import com.braintribe.gm.model.reason.Reasons;
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.processing.service.api.ReasonedServiceProcessor;
 import com.braintribe.model.processing.service.api.ServiceRequestContext;
 
 import devrock.cicd.model.api.EnrichExchangeContext;
 import devrock.cicd.model.api.EnrichExchangeContextResponse;
-import devrock.cicd.model.api.reason.GitAnalysisFailure;
 import devrock.git.CommentYamlInjectionParser;
 import devrock.git.GitTools;
 import devrock.step.api.StepExchangeContext;
@@ -38,27 +36,24 @@ public class EnrichExchangeContextProcessor implements ReasonedServiceProcessor<
 		EnrichExchangeContextResponse response = EnrichExchangeContextResponse.T.create();
 		
 		return Maybe.complete(response);
-
 	}
 	
 	private Reason enhanceFromGitCommitMessage(ServiceRequestContext context, EnrichExchangeContext request) {
-		File gitPath = new File(request.getGitPath());
-		
-		// Not being associated with git is an expected state as you initially might start just with a unassociated local folder
-		if (!GitTools.isGitCheckoutRoot(gitPath))
+		File dir = new File(request.getGitPath());
+
+		if (!GitTools.isGitCheckoutRoot(dir))
 			return null;
-		
-		Maybe<String> commentMaybe = GitTools.getLatestCommitComment(gitPath);
-		
-		if (commentMaybe.isUnsatisfied()) {
-			return Reasons.build(GitAnalysisFailure.T).text("Could not determine comment of latest commit for request customization").toReason();
-		}
-		
+
+		Maybe<String> commentMaybe = GitTools.getLatestCommitComment(dir);
+
+		// We already know this is a git dir. Error here most likely means there is no commit yet in current branch, so we ignore it.
+		if (commentMaybe.isUnsatisfied())
+			return null;
+
 		return enhance(context, commentMaybe.get());
 	}
 	
 	private Reason enhanceFromCommentInput(ServiceRequestContext context, EnrichExchangeContext request) {
-		
 		String commentInput = request.getCommentInput();
 		
 		if (commentInput == null || commentInput.isBlank())
