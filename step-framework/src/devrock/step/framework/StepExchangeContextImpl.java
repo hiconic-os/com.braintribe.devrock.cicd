@@ -41,6 +41,7 @@ import com.braintribe.model.generic.reflection.GenericModelType;
 import com.braintribe.model.generic.reflection.Property;
 import com.braintribe.model.generic.reflection.ScalarType;
 import com.braintribe.model.meta.data.constraint.Mandatory;
+import com.braintribe.model.processing.meta.cmd.CmdResolver;
 import com.braintribe.model.processing.session.api.managed.ModelAccessory;
 import com.braintribe.model.resource.Resource;
 import com.braintribe.model.resource.source.TransientSource;
@@ -68,15 +69,20 @@ public class StepExchangeContextImpl implements StepExchangeContext {
 	private static record ConfigKey (EntityType<?> type, String classifier) {}
 	
 	private final Map<ConfigKey, LazyInitialized<Maybe<? extends GenericEntity>>> configs = new ConcurrentHashMap<>();
-	private final ModelAccessory modelAccessory;
 	private final Function<String, Object> properties;
 	private final File projectDir;
 	private final Map<Class<? extends TypeSafeAttribute<?>>, Object> services = new ConcurrentHashMap<>();
+	private CmdResolver cmdResolver;
 	
+	@Deprecated
 	public StepExchangeContextImpl(File projectDir, File configFolder, ModelAccessory modelAccessory, Function<String, Object> properties) {
+		this(projectDir, configFolder, modelAccessory.getCmdResolver(), properties);
+	}
+	
+	public StepExchangeContextImpl(File projectDir, File configFolder, CmdResolver cmdResolver, Function<String, Object> properties) {
 		this.projectDir = projectDir;
 		this.configFolder = configFolder;
-		this.modelAccessory = modelAccessory;
+		this.cmdResolver = cmdResolver;
 		this.properties = properties;
 	}
 
@@ -115,7 +121,7 @@ public class StepExchangeContextImpl implements StepExchangeContext {
 		
 		Set<TransientSource> transientSources = new HashSet<>();
 		
-		boolean exchangeConfiguration = modelAccessory.getMetaData().entityType(configType).is(ExchangeConfiguration.T);
+		boolean exchangeConfiguration = cmdResolver.getMetaData().entityType(configType).is(ExchangeConfiguration.T);
 		
 		ConfigurationReadBuilder<? extends GenericEntity> builder = YamlConfigurations.read(configType) //
 				.options(o -> o.set(EntityVisitorOption.class, e -> {
@@ -260,10 +266,10 @@ public class StepExchangeContextImpl implements StepExchangeContext {
 	}
 
 	private <E extends GenericEntity> boolean isIntricate(E data) {
-		if (modelAccessory == null)
+		if (cmdResolver == null)
 			return false;
 		
-		return modelAccessory.getMetaData().entity(data).is(Intricate.T);
+		return cmdResolver.getMetaData().entity(data).is(Intricate.T);
 	}
 	
 	private String buildConfigFileName(ConfigKey key) {
@@ -296,7 +302,7 @@ public class StepExchangeContextImpl implements StepExchangeContext {
 					continue;
 
 				// if no preset value is present it depends on Mandatory meta data if this is a problem or not
-				if (modelAccessory != null && modelAccessory.getMetaData().entityType(containerType).property(property).is(Mandatory.T))
+				if (cmdResolver != null && cmdResolver.getMetaData().entityType(containerType).property(property).is(Mandatory.T))
 					return Reasons.build(InvalidArgument.T).text("Property " + containerEntity.entityType().getTypeSignature() + "." + property.getName() + " must not be empty").toReason();
 				
 				continue;
@@ -354,11 +360,11 @@ public class StepExchangeContextImpl implements StepExchangeContext {
 	}
 
 	private ArgumentMapping resolveArgumentMapping(GenericEntity containerEntity, Property property) {
-		if (modelAccessory == null)
+		if (cmdResolver == null)
 			return defaultExternalArgument;
 		
 		return NullSafe.get(//
-				modelAccessory.getMetaData().entity(containerEntity).property(property).meta(ArgumentMapping.T).exclusive(), //
+				cmdResolver.getMetaData().entity(containerEntity).property(property).meta(ArgumentMapping.T).exclusive(), //
 				defaultExternalArgument //
 		);
 	}
@@ -405,8 +411,11 @@ public class StepExchangeContextImpl implements StepExchangeContext {
 	private <V> Maybe<V> cast(GenericModelType propertyType, Object value) {
 		GenericModelType actualType = GMF.getTypeReflection().getType(value);
 		
-		if (propertyType.isAssignableFrom(actualType))
-			return Maybe.complete((V)value);
+		if (propertyType.isAssignableFrom(actualType)) {
+			@SuppressWarnings("unchecked")
+			V castedValue = (V)value;
+			return Maybe.complete(castedValue);
+		}
 		
 		if (actualType == EssentialTypes.TYPE_STRING) {
 			return parse(propertyType, (String)value);
@@ -445,10 +454,10 @@ public class StepExchangeContextImpl implements StepExchangeContext {
 	}
 
 	private String getExchangeClassifier(EntityType<?> type, Property property) {
-		if (modelAccessory == null)
+		if (cmdResolver == null)
 			return null;
 		
-		ExchangeClassifier exchangeClassifier = modelAccessory.getMetaData().entityType(type).property(property).meta(ExchangeClassifier.T).exclusive();
+		ExchangeClassifier exchangeClassifier = cmdResolver.getMetaData().entityType(type).property(property).meta(ExchangeClassifier.T).exclusive();
 		
 		if (exchangeClassifier == null)
 			return null;
@@ -481,8 +490,8 @@ public class StepExchangeContextImpl implements StepExchangeContext {
 	}
 
 	@Override
-	public ModelAccessory getModelAccessory() {
-		return modelAccessory;
+	public CmdResolver getCmdResolver() {
+		return cmdResolver;
 	}
 
 }

@@ -9,16 +9,18 @@ import com.braintribe.gm.model.reason.essential.InvalidArgument;
 import com.braintribe.model.processing.service.api.ReasonedServiceProcessor;
 import com.braintribe.model.processing.service.api.ServiceRequestContext;
 
+import devrock.cicd.model.api.RunTest;
 import devrock.cicd.model.api.RunTests;
 import devrock.cicd.model.api.RunTestsResponse;
 import devrock.cicd.model.api.data.CodebaseAnalysis;
 import devrock.cicd.model.api.data.LocalArtifact;
+import devrock.cicd.steps.processing.BuildHandlers;
 
 public class RunTestsProcessor implements ReasonedServiceProcessor<RunTests, RunTestsResponse> {
 	@Override
 	public Maybe<? extends RunTestsResponse> processReasoned(ServiceRequestContext context,
 			RunTests request) {
-		Consumer<LocalArtifact> handler = request.getHandler();
+		Consumer<LocalArtifact> handler = BuildHandlers.getHandler(context, request, RunTest.T);
 		
 		if (handler == null)
 			return Reasons.build(InvalidArgument.T).text("Transitive property RunTests.handler must not be null").toMaybe();

@@ -1,4 +1,4 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<?xml version="1.0" encoding="UTF-8"?><project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>com.braintribe.devrock.cicd</groupId>
@@ -21,11 +21,6 @@
             <version>${V.com.braintribe.gm}</version>
         </dependency>
         <dependency>
-            <groupId>com.braintribe.gm</groupId>
-            <artifactId>gm-session-api</artifactId>
-            <version>${V.com.braintribe.gm}</version>
-        </dependency>
-        <dependency>
             <groupId>com.braintribe.devrock.cicd</groupId>
             <artifactId>step-api-model</artifactId>
             <version>${V.com.braintribe.devrock.cicd}</version>
@@ -33,9 +28,13 @@
         </dependency>
         <dependency>
             <groupId>com.braintribe.gm</groupId>
-            <artifactId>service-api-commons</artifactId>
+            <artifactId>meta-model-api</artifactId>
             <version>${V.com.braintribe.gm}</version>
-            <?tag asset ?>
+        </dependency>
+        <dependency>
+            <groupId>hiconic.platform.reflex</groupId>
+            <artifactId>reflex-module-api</artifactId>
+            <version>${V.hiconic.platform.reflex}</version>
         </dependency>
     </dependencies>
 </project>

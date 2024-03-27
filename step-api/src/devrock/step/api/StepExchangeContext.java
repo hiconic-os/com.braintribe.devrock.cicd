@@ -8,7 +8,7 @@ import com.braintribe.gm.model.reason.Reason;
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.GenericModelType;
-import com.braintribe.model.processing.session.api.managed.ModelAccessory;
+import com.braintribe.model.processing.meta.cmd.CmdResolver;
 
 /**
  * A StepContext allows to acquire 
@@ -37,6 +37,5 @@ public interface StepExchangeContext {
 	
 	<A extends TypeSafeAttribute<V>, V> V getService(Class<A> attribute, Supplier<V> defaultValueSupplier);
 
-	ModelAccessory getModelAccessory();
-
+	CmdResolver getCmdResolver();
 }

@@ -1,8 +1,11 @@
 package devrock.cicd.steps.processor;
 
+import static com.braintribe.console.ConsoleOutputs.brightRed;
 import static com.braintribe.console.ConsoleOutputs.brightWhite;
 import static com.braintribe.console.ConsoleOutputs.cyan;
 import static com.braintribe.console.ConsoleOutputs.println;
+import static com.braintribe.console.ConsoleOutputs.sequence;
+import static com.braintribe.console.ConsoleOutputs.text;
 import static com.braintribe.console.ConsoleOutputs.yellow;
 import static com.braintribe.utils.lcd.CollectionTools2.index;
 import static com.braintribe.utils.lcd.CollectionTools2.newConcurrentSet;
@@ -13,6 +16,8 @@ import static com.braintribe.utils.lcd.CollectionTools2.newTreeSet;
 import static java.util.Collections.emptySet;
 
 import java.io.File;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -25,12 +30,15 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import com.braintribe.console.ConsoleOutputs;
+import com.braintribe.console.output.ConsoleOutput;
 import com.braintribe.execution.CountingThreadFactory;
 import com.braintribe.execution.ExtendedThreadPoolExecutor;
 import com.braintribe.execution.graph.api.ParallelGraphExecution;
+import com.braintribe.execution.graph.api.ParallelGraphExecution.PgeItemStatus;
 import com.braintribe.execution.graph.api.ParallelGraphExecution.PgeResult;
 import com.braintribe.gm.model.reason.Reason;
 import com.braintribe.gm.model.reason.Reasons;
+import com.braintribe.gm.model.reason.UnsatisfiedMaybeTunneling;
 import com.braintribe.model.artifact.analysis.AnalysisArtifact;
 import com.braintribe.model.artifact.analysis.AnalysisDependency;
 import com.braintribe.model.artifact.essential.VersionedArtifactIdentification;
@@ -195,7 +203,37 @@ import devrock.cicd.model.api.reason.ArtifactsBuildFailed;
 
 			if (result.hasError()) {
 				storeSkippedSolutionsIfRelevant();
-				return Reasons.build(ArtifactsBuildFailed.T).text("Parallel execution failed!").toReason();
+				
+				Reason umbrellaError = Reasons.build(ArtifactsBuildFailed.T).text("Parallel execution failed!").toReason();
+				
+				// TODO: talk with Peter about handling here
+				result.forEach(r -> {
+					if (r.status() == PgeItemStatus.failed) {
+						Throwable error = r.getError();
+						
+						if (error instanceof UnsatisfiedMaybeTunneling u) {
+							
+							Reason reason = Reasons.build(ArtifactsBuildFailed.T) //
+									.text("Build of " + r.getItem().getFolderName() + " failed") //
+									.cause(u.getMaybe().whyUnsatisfied()) //
+									.toReason();
+							
+							umbrellaError.getReasons().add(reason);
+						}
+						else {
+							println(
+								sequence(
+									brightRed("Exception when building "),
+									localArtifactToConsoleOutput(r.getItem()),
+									text(": "), 
+									text(throwableToString(error))
+								)
+							);
+						}
+					}
+				});
+				
+				return umbrellaError;
 			}
 
 			alreadyBuiltTempFile.delete();
@@ -204,6 +242,15 @@ import devrock.cicd.model.api.reason.ArtifactsBuildFailed;
 		} finally {
 			executor.shutdown();
 		}
+	}
+	
+	private String throwableToString(Throwable e) {
+		StringWriter w = new StringWriter();
+		try (PrintWriter pw = new PrintWriter(w)) {
+			e.printStackTrace(pw);
+		}
+		
+		return w.toString();
 	}
 
 	private List<LocalArtifact> resolveDependers(LocalArtifact artifact) {
@@ -261,17 +308,22 @@ import devrock.cicd.model.api.reason.ArtifactsBuildFailed;
 		return false;
 	}
 
-	private void buildSingleArtifact(LocalArtifact artifact) {
+	private Reason buildSingleArtifact(LocalArtifact artifact) {
 		try {
 			int runningBuilds = runningBuildsCounter.incrementAndGet();
 
 			logBuildingInfoAboutArtifact(artifact, "Starting", runningBuilds);
 
 			handler.accept(artifact);
-
-		} finally {
+		}
+		catch (UnsatisfiedMaybeTunneling e) {
+			return e.whyUnsatisfied();
+		}
+		finally {
 			runningBuildsCounter.decrementAndGet();
 		}
+		
+		return null;
 	}
 
 	private void storeSkippedSolutionsIfRelevant() {
@@ -286,16 +338,22 @@ import devrock.cicd.model.api.reason.ArtifactsBuildFailed;
 	private void logBuildingInfoAboutArtifact(LocalArtifact artifact, String startSkipOrIgnore, int runningBuilds) {
 		int buildNumber = buildCounter.incrementAndGet();
 		
+		println(ConsoleOutputs.sequence( //
+				brightWhite(startSkipOrIgnore + " task (" + buildNumber + "/" + builds.size() + ") " + runningBuildsInfoIfParallel(runningBuilds)), //
+				localArtifactToConsoleOutput(artifact) //
+		));
+	}
+	
+	private ConsoleOutput localArtifactToConsoleOutput(LocalArtifact artifact) {
 		VersionedArtifactIdentification ai = artifact.getArtifactIdentification();
 		String version = ai.getVersion();
 
-		println(ConsoleOutputs.sequence( //
-				brightWhite(startSkipOrIgnore + " task (" + buildNumber + "/" + builds.size() + ") " + runningBuildsInfoIfParallel(runningBuilds)), //
+		return ConsoleOutputs.sequence( //
 				cyan(ai.getArtifactId()), //
 				brightWhite("#" + version + " (" + ai.getGroupId() + ")") //
-		));
+		);
 	}
-
+	
 	private String runningBuildsInfoIfParallel(int runningBuilds) {
 		return runningBuilds > 0 ? "(R:" + runningBuilds + ") " : "";
 	}

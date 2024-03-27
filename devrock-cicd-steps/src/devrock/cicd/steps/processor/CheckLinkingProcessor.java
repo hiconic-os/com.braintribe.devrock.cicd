@@ -11,15 +11,17 @@ import com.braintribe.model.processing.service.api.ServiceRequestContext;
 
 import devrock.cicd.model.api.CheckLinking;
 import devrock.cicd.model.api.CheckLinkingResponse;
+import devrock.cicd.model.api.RunCheckLinking;
 import devrock.cicd.model.api.data.CodebaseAnalysis;
 import devrock.cicd.model.api.data.CodebaseDependencyAnalysis;
 import devrock.cicd.model.api.data.LocalArtifact;
+import devrock.cicd.steps.processing.BuildHandlers;
 
 public class CheckLinkingProcessor implements ReasonedServiceProcessor<CheckLinking, CheckLinkingResponse> {
 	@Override
 	public Maybe<? extends CheckLinkingResponse> processReasoned(ServiceRequestContext context,
 			CheckLinking request) {
-		Consumer<LocalArtifact> handler = request.getHandler();
+		Consumer<LocalArtifact> handler = BuildHandlers.getHandler(context, request, RunCheckLinking.T);
 		
 		if (handler == null)
 			return Reasons.build(InvalidArgument.T).text("Transitive property BuildArtifact.handler must not be null").toMaybe();
