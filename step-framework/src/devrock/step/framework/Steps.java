@@ -4,28 +4,24 @@ package devrock.step.framework;
 import java.io.File;
 import java.util.function.Function;
 
-import com.braintribe.wire.api.Wire;
-
 import devrock.step.api.StepEvaluator;
-import devrock.step.framework.wire.StepFrameworkWireModule;
-import devrock.step.framework.wire.contract.StepFrameworkContract;
+import hiconic.rx.module.api.service.ServiceDomain;
+import hiconic.rx.module.api.wire.RxPlatformContract;
+import hiconic.rx.platform.RxPlatform;
 
 public abstract class Steps {
-	private static StepFrameworkContract stepFrameworkContract;
-	
-	static {
-		stepFrameworkContract = Wire.context(StepFrameworkWireModule.INSTANCE).contract();
-	}
+	private static RxPlatformContract platform = new RxPlatform().getContract();
 	
 	public static StepEvaluator evaluator(File exchangeFolder) {
 		return evaluator(exchangeFolder, exchangeFolder);
 	}
 	
 	public static StepEvaluator evaluator(File cwd, File exchangeFolder) {
-		return stepFrameworkContract.stepEvaluator(cwd, exchangeFolder, null);
+		return evaluator(cwd, exchangeFolder, null);
 	}
 	
 	public static StepEvaluator evaluator(File cwd, File exchangeFolder, Function<String, Object> properties) {
-		return stepFrameworkContract.stepEvaluator(cwd, exchangeFolder, properties);
+		ServiceDomain mainDomain = platform.serviceDomains().main();
+		return new StepEvaluatorImpl(mainDomain.cmdResolver(), cwd, exchangeFolder, platform.evaluator(), properties);
 	}
 }

@@ -17,8 +17,8 @@ import com.braintribe.gm.model.reason.Maybe;
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.Property;
+import com.braintribe.model.processing.meta.cmd.CmdResolver;
 import com.braintribe.model.processing.meta.cmd.builders.EntityMdResolver;
-import com.braintribe.model.processing.session.api.managed.ModelAccessory;
 import com.braintribe.utils.lcd.NullSafe;
 import com.braintribe.utils.lcd.StringTools;
 
@@ -245,8 +245,8 @@ public class StepSequencer {
 		if (currentRequest == null)
 			return;
 
-		ModelAccessory modelAccessory = evaluator.getModelAccessory();
-		EntityMdResolver entityMdResolver = modelAccessory.getMetaData().entity(currentRequest);
+		CmdResolver cmdResolver = evaluator.getCmdResolver();
+		EntityMdResolver entityMdResolver = cmdResolver.getMetaData().entity(currentRequest);
 
 		for (Property p : currentRequest.entityType().getProperties()) {
 			ArgumentPropagation ap = entityMdResolver.property(p).meta(ArgumentPropagation.T).exclusive();
@@ -262,5 +262,4 @@ public class StepSequencer {
 		}
 
 	}
-
 }

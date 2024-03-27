@@ -45,11 +45,13 @@ import com.braintribe.wire.api.context.WireContextBuilder;
 
 import devrock.cicd.model.api.BuildArtifacts;
 import devrock.cicd.model.api.BuildArtifactsResponse;
+import devrock.cicd.model.api.RunInstall;
 import devrock.cicd.model.api.data.BuildResult;
 import devrock.cicd.model.api.data.CodebaseAnalysis;
 import devrock.cicd.model.api.data.CodebaseDependencyAnalysis;
 import devrock.cicd.model.api.data.LocalArtifact;
 import devrock.cicd.model.api.reason.SolutionHashResolutionFailed;
+import devrock.cicd.steps.processing.BuildHandlers;
 import devrock.cicd.steps.processing.SolutionHashResolver;
 import devrock.pom.PomTools;
 
@@ -63,7 +65,8 @@ public class BuildArtifactsProcessor extends SpawningServiceProcessor<BuildArtif
 			
 			@Override
 			protected Maybe<BuildArtifactsResponse> process() {
-				Consumer<LocalArtifact> handler = request.getHandler();
+				Consumer<LocalArtifact> handler = BuildHandlers.getHandler(context, request, RunInstall.T);
+				
 				
 				if (handler == null)
 					return Reasons.build(InvalidArgument.T).text("Transitive property BuildArtifacts.handler must not be null").toMaybe();

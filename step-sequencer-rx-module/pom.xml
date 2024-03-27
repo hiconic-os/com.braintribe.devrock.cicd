@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?><project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.braintribe.devrock.cicd</groupId>
+        <artifactId>parent</artifactId>
+        <version>[1.0,1.1)</version>
+    </parent>
+    <artifactId>step-sequencer-rx-module</artifactId>
+    <version>1.0.1</version>
+    <properties/>
+    <dependencies>
+        <dependency>
+            <groupId>hiconic.platform.reflex</groupId>
+            <artifactId>reflex-module-api</artifactId>
+            <version>${V.hiconic.platform.reflex}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.braintribe.gm</groupId>
+            <artifactId>service-api</artifactId>
+            <version>${V.com.braintribe.gm}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.braintribe.devrock.cicd</groupId>
+            <artifactId>step-sequencer-configuration-model</artifactId>
+            <version>${V.com.braintribe.devrock.cicd}</version>
+            <?tag asset ?>
+        </dependency>
+        <dependency>
+            <groupId>com.braintribe.devrock.cicd</groupId>
+            <artifactId>devrock-cicd-api-model</artifactId>
+            <version>${V.com.braintribe.devrock.cicd}</version>
+            <?tag asset ?>
+        </dependency>
+        <dependency>
+            <groupId>com.braintribe.devrock.cicd</groupId>
+            <artifactId>ant-api-model</artifactId>
+            <version>${V.com.braintribe.devrock.cicd}</version>
+            <?tag asset ?>
+        </dependency>
+        <dependency>
+            <groupId>com.braintribe.devrock.cicd</groupId>
+            <artifactId>ant-rx-module</artifactId>
+            <version>${V.com.braintribe.devrock.cicd}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.braintribe.devrock.ant</groupId>
+            <artifactId>devrock-ant-tasks</artifactId>
+            <version>${V.com.braintribe.devrock.ant}</version>
+        </dependency>
+    </dependencies>
+</project>
