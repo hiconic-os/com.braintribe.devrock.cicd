@@ -151,7 +151,9 @@ public class StepSequencer implements ReasonedServiceAroundProcessor<StepRequest
 		DynamicEntityType et = new DynamicEntityType("VirtualStepRequest");
 		
 		for (StepRequest request: sequence.reversed()) {
-			request.entityType();
+			for (Property property: request.entityType().getProperties()) {
+				
+			};
 			et.addProperty(null, et)
 		}
 		
