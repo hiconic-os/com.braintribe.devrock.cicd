@@ -36,6 +36,11 @@
         </dependency>
         <dependency>
             <groupId>com.braintribe.devrock.cicd</groupId>
+            <artifactId>github-notification</artifactId>
+            <version>${V.com.braintribe.devrock.cicd}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.braintribe.devrock.cicd</groupId>
             <artifactId>ant-rx-module</artifactId>
             <version>${V.com.braintribe.devrock.cicd}</version>
         </dependency>
