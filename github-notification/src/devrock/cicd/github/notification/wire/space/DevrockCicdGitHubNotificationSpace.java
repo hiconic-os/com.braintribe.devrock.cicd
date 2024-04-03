@@ -1,5 +1,6 @@
 package devrock.cicd.github.notification.wire.space;
 
+import com.braintribe.devrock.cicd._GithubNotificationApiModel_;
 import com.braintribe.model.processing.meta.editor.ModelMetaDataEditor;
 import com.braintribe.wire.api.annotation.Managed;
 
@@ -17,6 +18,7 @@ public class DevrockCicdGitHubNotificationSpace implements RxModuleContract {
 	@Override
 	public void configureMainServiceDomain(ServiceDomainConfiguration configuration) {
 		configuration.registerInterceptor("github-label-notifier").registerForType(StepRequest.T, gitHubLabelNotifier());
+		configuration.addModel(_GithubNotificationApiModel_.reflection);
 		configuration.configureModel(this::configureApiModel);
 	}
 
