@@ -25,7 +25,6 @@ import com.braintribe.console.ConsoleOutputs;
 import com.braintribe.devrock.mc.api.deploy.ArtifactDeployer;
 import com.braintribe.devrock.mc.api.resolver.ArtifactDataResolution;
 import com.braintribe.devrock.mc.api.resolver.ArtifactDataResolver;
-import com.braintribe.devrock.mc.core.commons.McOutputs;
 import com.braintribe.devrock.mc.core.repository.index.ArtifactIndex;
 import com.braintribe.devrock.mc.core.resolver.BasicDependencyResolver;
 import com.braintribe.devrock.model.mc.reason.UnresolvedDependencyVersion;

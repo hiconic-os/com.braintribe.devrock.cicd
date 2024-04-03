@@ -2,10 +2,8 @@ package devrock.cicd.steps.test;
 
 import java.io.File;
 import java.util.List;
-import java.util.concurrent.Phaser;
 
 import com.braintribe.gm.model.reason.Maybe;
-import com.braintribe.model.version.Version;
 import com.braintribe.utils.FileTools;
 
 import devrock.cicd.model.api.AnalyzeCodebase;

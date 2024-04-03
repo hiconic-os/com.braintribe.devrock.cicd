@@ -6,11 +6,11 @@ import com.braintribe.wire.api.annotation.Managed;
 
 import devrock.cicd.model.api.RunBuild;
 import devrock.step.api.wire.StepFrameworkContract;
-import devrock.step.model.api.RunDefaultStep;
+import devrock.step.model.api.RunStep;
 import devrock.step.model.api.StepRequest;
 import devrock.step.sequencer.model.configuration.StepConfiguration;
 import devrock.steps.sequencer.processing.AntBuildProcessor;
-import devrock.steps.sequencer.processing.RunDefaultStepProcessor;
+import devrock.steps.sequencer.processing.RunStepProcessor;
 import devrock.steps.sequencer.processing.StepSequencer;
 import devrock.steps.sequencer.wire.contract.SequencerEnvironmentContract;
 import hiconic.rx.module.api.service.ServiceDomainConfiguration;
@@ -32,7 +32,7 @@ public class StepSequencerRxModuleSpace implements RxModuleContract {
 	@Override
 	public void configureMainServiceDomain(ServiceDomainConfiguration configuration) {
 		configuration.register(RunBuild.T, buildProcessor());
-		configuration.register(RunDefaultStep.T, runDefaultStepProcessor());
+		configuration.register(RunStep.T, runDefaultStepProcessor());
 		configuration.addDefaultRequestSupplier(StepSequencer::getDefaultRequest);
 	}
 	
@@ -63,8 +63,8 @@ public class StepSequencerRxModuleSpace implements RxModuleContract {
 	}
 	
 	@Managed
-	private RunDefaultStepProcessor runDefaultStepProcessor() {
-		RunDefaultStepProcessor bean = new RunDefaultStepProcessor();
+	private RunStepProcessor runDefaultStepProcessor() {
+		RunStepProcessor bean = new RunStepProcessor();
 		bean.setConfiguration(configuration());
 		return bean;
 	}

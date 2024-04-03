@@ -5,61 +5,38 @@ import static com.braintribe.console.ConsoleOutputs.sequence;
 import static com.braintribe.console.ConsoleOutputs.text;
 
 import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.Lock;
-import java.util.function.Function;
-import java.util.zip.GZIPInputStream;
-import java.util.zip.GZIPOutputStream;
 
 import com.braintribe.common.attribute.common.CallerEnvironment;
 import com.braintribe.console.ConsoleOutputs;
 import com.braintribe.devrock.mc.api.deploy.ArtifactDeployer;
-import com.braintribe.devrock.mc.api.resolver.ArtifactDataResolution;
 import com.braintribe.devrock.mc.api.resolver.ArtifactDataResolver;
 import com.braintribe.devrock.mc.core.commons.McOutputs;
-import com.braintribe.devrock.mc.core.repository.index.ArtifactIndex;
-import com.braintribe.devrock.mc.core.resolver.BasicDependencyResolver;
 import com.braintribe.devrock.mc.core.wirings.backend.ArtifactDataBackendModule;
 import com.braintribe.devrock.mc.core.wirings.backend.contract.ArtifactDataBackendContract;
 import com.braintribe.devrock.mc.core.wirings.configuration.contract.DevelopmentEnvironmentContract;
 import com.braintribe.devrock.mc.core.wirings.resolver.ArtifactDataResolverModule;
 import com.braintribe.devrock.mc.core.wirings.resolver.contract.ArtifactDataResolverContract;
 import com.braintribe.devrock.model.mc.reason.InvalidRepositoryConfiguration;
-import com.braintribe.devrock.model.mc.reason.UnresolvedDependencyVersion;
-import com.braintribe.devrock.model.repository.MavenHttpRepository;
 import com.braintribe.devrock.model.repository.Repository;
 import com.braintribe.devrock.model.repository.RepositoryConfiguration;
 import com.braintribe.gm.model.reason.Maybe;
 import com.braintribe.gm.model.reason.Reason;
 import com.braintribe.gm.model.reason.Reasons;
-import com.braintribe.gm.model.reason.essential.InternalError;
-import com.braintribe.gm.model.reason.essential.IoError;
-import com.braintribe.gm.model.reason.essential.NotFound;
-import com.braintribe.model.artifact.compiled.CompiledArtifactIdentification;
-import com.braintribe.model.artifact.compiled.CompiledDependencyIdentification;
 import com.braintribe.model.artifact.consumable.Artifact;
 import com.braintribe.model.artifact.consumable.ArtifactResolution;
 import com.braintribe.model.artifact.consumable.Part;
-import com.braintribe.model.artifact.essential.PartIdentification;
 import com.braintribe.model.resource.FileResource;
 import com.braintribe.model.resource.Resource;
-import com.braintribe.model.version.Version;
 import com.braintribe.utils.lcd.LazyInitialized;
-import com.braintribe.utils.stream.api.StreamPipe;
-import com.braintribe.utils.stream.api.StreamPipes;
 import com.braintribe.wire.api.Wire;
 import com.braintribe.wire.api.context.WireContext;
 import com.braintribe.wire.api.context.WireContextBuilder;
 
 import devrock.cicd.model.api.PublishArtifacts;
 import devrock.cicd.model.api.PublishArtifactsResponse;
-import devrock.cicd.model.api.reason.ArtifactIndexUpdateFailed;
 import devrock.cicd.model.api.reason.UploadArtifactsFailed;
 import devrock.cicd.steps.processing.ArtifactIndexUpdate;
-import devrock.cicd.steps.processor.locking.DistributedLocking;
 
 public class PublishArtifactsProcessor extends SpawningServiceProcessor<PublishArtifacts, PublishArtifactsResponse> {
 	

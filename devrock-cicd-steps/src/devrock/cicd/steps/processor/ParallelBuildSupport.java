@@ -308,7 +308,7 @@ import devrock.cicd.model.api.reason.ArtifactsBuildFailed;
 		return false;
 	}
 
-	private Reason buildSingleArtifact(LocalArtifact artifact) {
+	private void buildSingleArtifact(LocalArtifact artifact) {
 		try {
 			int runningBuilds = runningBuildsCounter.incrementAndGet();
 
@@ -316,14 +316,9 @@ import devrock.cicd.model.api.reason.ArtifactsBuildFailed;
 
 			handler.accept(artifact);
 		}
-		catch (UnsatisfiedMaybeTunneling e) {
-			return e.whyUnsatisfied();
-		}
 		finally {
 			runningBuildsCounter.decrementAndGet();
 		}
-		
-		return null;
 	}
 
 	private void storeSkippedSolutionsIfRelevant() {

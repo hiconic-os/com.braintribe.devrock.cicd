@@ -32,7 +32,6 @@ import com.braintribe.gm.model.reason.essential.NotFound;
 import com.braintribe.model.artifact.compiled.CompiledArtifact;
 import com.braintribe.model.artifact.compiled.CompiledArtifactIdentification;
 import com.braintribe.model.artifact.compiled.CompiledDependencyIdentification;
-import com.braintribe.model.artifact.essential.PartIdentification;
 import com.braintribe.model.version.Version;
 import com.braintribe.wire.api.Wire;
 import com.braintribe.wire.api.context.WireContext;

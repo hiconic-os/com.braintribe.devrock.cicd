@@ -1,6 +1,7 @@
 package devrock.cicd.model.api;
 
 import com.braintribe.model.generic.annotation.Initializer;
+import com.braintribe.model.generic.annotation.meta.Alias;
 import com.braintribe.model.generic.annotation.meta.Mandatory;
 import com.braintribe.model.generic.eval.EvalContext;
 import com.braintribe.model.generic.eval.Evaluator;
@@ -10,6 +11,7 @@ import com.braintribe.model.service.api.ServiceRequest;
 
 import devrock.step.model.api.StepRequest;
 
+@Alias("analyze")
 public interface AnalyzeCodebase extends StepRequest, EnvironmentAware {
 
 	EntityType<AnalyzeCodebase> T = EntityTypes.T(AnalyzeCodebase.class);

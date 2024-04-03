@@ -4,15 +4,15 @@ import static com.braintribe.console.ConsoleOutputs.println;
 import static com.braintribe.console.ConsoleOutputs.white;
 
 import java.io.File;
+import java.util.LinkedList;
 import java.util.List;
-import java.util.stream.Stream;
+import java.util.function.Function;
 
 import com.braintribe.cfg.Configurable;
 import com.braintribe.cfg.Required;
 import com.braintribe.common.attribute.common.CallerEnvironment;
+import com.braintribe.console.ConsoleOutputs;
 import com.braintribe.gm.model.reason.Maybe;
-import com.braintribe.model.generic.GenericEntity;
-import com.braintribe.model.generic.proxy.DynamicEntityType;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.processing.service.api.ProceedContext;
 import com.braintribe.model.processing.service.api.ReasonedServiceAroundProcessor;
@@ -24,7 +24,8 @@ import com.braintribe.utils.StringTools;
 import devrock.step.api.StepExchangeContext;
 import devrock.step.api.StepExchangeContextAttribute;
 import devrock.step.api.StepExchangeContextFactory;
-import devrock.step.model.api.RunDefaultStep;
+import devrock.step.model.api.RunStep;
+import devrock.step.model.api.StepEndpointOptions;
 import devrock.step.model.api.StepRequest;
 import devrock.step.model.api.StepResponse;
 import devrock.step.model.api.endpoint.Stepping;
@@ -56,32 +57,42 @@ public class StepSequencer implements ReasonedServiceAroundProcessor<StepRequest
 	public Maybe<? extends StepResponse> processReasoned(ServiceRequestContext context, StepRequest triggerRequest,
 			ProceedContext proceedContext) {
 
-		StepExchangeContext exchangeContext = buildExchangeContext(context);
+		EndpointInput input = EndpointInput.get();
+		
+		StepExchangeContext exchangeContext = buildExchangeContext(context, input);
 		
 		ServiceRequestContextBuilder builder = context.derive();
 		builder.setAttribute(StepExchangeContextAttribute.class, exchangeContext);
 		
 		ServiceRequestContext enrichedRequestContext = builder.build();
-		return processSequence(enrichedRequestContext, exchangeContext, triggerRequest, proceedContext);
+		return processSequence(enrichedRequestContext, input, exchangeContext, triggerRequest, proceedContext);
 	}
 	
-	private StepExchangeContext buildExchangeContext(ServiceRequestContext context) {
+	private StepExchangeContext buildExchangeContext(ServiceRequestContext context, EndpointInput input) {
 		
 		File projectDir = CallerEnvironment.getCurrentWorkingDirectory();
 		File configFolder = new File(projectDir, ".step-exchange");
 		
-		return stepExchangeContextFactory.newStepExchangeContext(projectDir, configFolder, System::getProperty);
+		StepEndpointOptions options = input.findInput(StepEndpointOptions.T);
+		
+		Function<String, Object> propertyLookup = null;
+		
+		if (options != null) {
+			propertyLookup = new EntityPropertyLookup(options);
+		}
+		
+		return stepExchangeContextFactory.newStepExchangeContext(projectDir, configFolder, propertyLookup);
 	}
 	
-	public Maybe<? extends StepResponse> processSequence(ServiceRequestContext enrichedRequestContext, StepExchangeContext exchangeContext, StepRequest triggerRequest,
+	public Maybe<? extends StepResponse> processSequence(ServiceRequestContext enrichedRequestContext, EndpointInput input, StepExchangeContext exchangeContext, StepRequest triggerRequest,
 			ProceedContext proceedContext) {
-		EndpointInput input = EndpointInput.get();
+		
 		Stepping stepping = input.findInput(Stepping.T);
 		
 		if (isExternallySequenced(stepping)) 
 			return proceedContext.proceedReasoned(enrichedRequestContext, triggerRequest);
 		
-		List<StepRequest> predecessorSequence = determineSequence(triggerRequest);
+		List<StepRequest> predecessorSequence = determineSequence(input, triggerRequest);
 		
 		Maybe<? extends StepResponse> maybe = null;
 		
@@ -99,28 +110,44 @@ public class StepSequencer implements ReasonedServiceAroundProcessor<StepRequest
 		return maybe;
 	}
 	
-	private List<StepRequest> determineSequence(StepRequest request) {
-		int stepIndex = indexOf(request);
+	private List<StepRequest> determineSequence(EndpointInput input, StepRequest triggerRequest) {
+		List<StepRequest> explicitStepRequests = input.findInputs(StepRequest.T);
 		
-		if (stepIndex == -1)
-			return List.of(request);
+		if (explicitStepRequests.isEmpty())
+			explicitStepRequests = List.of(triggerRequest);
 		
-		return Stream.concat( //
-				configuration.getSteps().subList(0, stepIndex).stream().map(Step::getRequest), //
-				Stream.of(request) //
-				).toList();
+		List<StepRequest> sequence = mergeRequests(explicitStepRequests);
+		
+		if (sequence.isEmpty())
+			return List.of(triggerRequest);
+		
+		return sequence;
 	}
 	
-	private int indexOf(StepRequest request) {
-		int i = 0;
-		EntityType<GenericEntity> entityType = request.entityType();
-		for (Step step: configuration.getSteps()) {
-			if (step.getRequest().entityType() == entityType)
-				return i;
-			i++;
+	private List<StepRequest> mergeRequests(List<StepRequest> explicitStepRequests) {
+		List<Step> steps = configuration.getSteps();
+		List<StepRequest> sequence = new LinkedList<>();
+		
+		boolean found = false;
+		
+		for (int i = steps.size() - 1; i >= 0; i--) {
+			Step step = steps.get(i);
+			StepRequest request = step.getRequest();
+			EntityType<?> stepType = request.entityType();
+			
+			for (StepRequest explicitRequest: explicitStepRequests) {
+				if (explicitRequest.entityType() == stepType) {
+					request = explicitRequest;
+					found = true;
+					break;
+				}
+			}
+			
+			if (found)
+				sequence.addFirst(request);
 		}
 		
-		return -1;
+		return sequence;
 	}
 	
 	public boolean isExternallySequenced(Stepping stepping) {
@@ -139,26 +166,8 @@ public class StepSequencer implements ReasonedServiceAroundProcessor<StepRequest
 		File parentPom = new File(parent, "pom.xml");
 		
 		if (parentPom.exists())
-			return RunDefaultStep.T.create();
+			return RunStep.T.create();
 		
 		return null;
 	}
-	
-	
-	private EntityType<?> buildCoalescingType(StepRequest triggerRequest) {
-		List<StepRequest> sequence = determineSequence(triggerRequest);
-		
-		DynamicEntityType et = new DynamicEntityType("VirtualStepRequest");
-		
-		for (StepRequest request: sequence.reversed()) {
-			for (Property property: request.entityType().getProperties()) {
-				
-			};
-			et.addProperty(null, et)
-		}
-		
-	}
-
-
-
 }

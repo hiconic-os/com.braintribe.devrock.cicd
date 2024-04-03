@@ -210,8 +210,6 @@ public class AntProcessor extends AbstractDispatchingServiceProcessor<AntRequest
         Project project = new Project();
         project.init();
         
-        System.err.charset();
-        
         File projectDir = new File(request.getProjectDir());
         
         try (Outputs outputs = openOutputs(request, projectDir)) {
@@ -231,14 +229,13 @@ public class AntProcessor extends AbstractDispatchingServiceProcessor<AntRequest
 	        for (Map.Entry<String, String> entry: request.getProperties().entrySet()) {
 	        	project.setProperty(entry.getKey(), entry.getValue());
 	        }
-	        
-	        projectHelper.parse(project, new File(projectDir, "build.xml"));
 	
 	        long start = System.currentTimeMillis();
 
 	        Demuxing.bindSubProjectToCurrentThread(project);
 	        
 	        try {
+	        	projectHelper.parse(project, new File(projectDir, "build.xml"));
 	        	project.executeTarget(request.getTarget());
 	        }
 	        catch (BuildException e) {

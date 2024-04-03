@@ -5,7 +5,7 @@ import java.io.PrintStream;
 import org.apache.tools.ant.Project;
 
 public class Demuxing {
-	private static DrDemuxOutputStream btDemuxOut, btDemuxErr;
+	private static DemuxPrintStream btDemuxOut, btDemuxErr;
 	private static PrintStream originalOut, originalErr;
 	private static Object demuxMonitor = new Object();
 	private static volatile boolean configuredDemuxing = false;
@@ -38,10 +38,10 @@ public class Demuxing {
 		originalOut = System.out;
 		originalErr = System.err;
 
-		btDemuxOut = new DrDemuxOutputStream(originalOut, false);
-		btDemuxErr = new DrDemuxOutputStream(originalErr, true);
+		btDemuxOut = new DemuxPrintStream(originalOut, false);
+		btDemuxErr = new DemuxPrintStream(originalErr, true);
 
-		System.setOut(new PrintStream(btDemuxOut));
-		System.setErr(new PrintStream(btDemuxErr));
+		System.setOut(btDemuxOut);
+		System.setErr(btDemuxErr);
 	}
 }
