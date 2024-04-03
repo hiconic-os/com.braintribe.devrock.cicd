@@ -13,6 +13,8 @@ import org.gradle.api.Project;
 import org.gradle.api.Task;
 import org.gradle.api.UncheckedIOException;
 
+import com.braintribe.console.AbstractAnsiConsole;
+import com.braintribe.console.ConsoleConfiguration;
 import com.braintribe.gm.model.reason.Maybe;
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.reflection.EntityType;
@@ -43,12 +45,48 @@ public class StepSequencer {
 	private final GradleAntContext gradleAntContext;
 	private final boolean useColors;
 
-	public StepSequencer(Project project, GradleAntContext gradleAntContext, boolean useColors) {
+	public StepSequencer(Project project, GradleAntContext gradleAntContext) {
 		this.project = project;
 		this.gradleAntContext = gradleAntContext;
-		this.useColors = useColors;
+		this.useColors = useColors();
 		File exchangeFolder = new File(project.getProjectDir(), ".step-exchange");
 		evaluator = Steps.evaluator(project.getProjectDir(), exchangeFolder, this::findProperty);
+		installConsole();
+	}
+	
+	private void installConsole() {
+		ConsoleConfiguration.install(new SysOutConsole(useColors()));
+	}
+	
+	private boolean useColors() {
+		Object value = project.findProperty("colors");
+		
+		if (value != null)
+			return Boolean.TRUE.toString().equals(String.valueOf(value));
+		
+		String strValue = System.getenv("DEVROCK_PIPELINE_COLORS");
+		
+		if (strValue != null)
+			return Boolean.TRUE.toString().equals(strValue);
+		
+		return true;
+	}
+
+	class SysOutConsole extends AbstractAnsiConsole  {
+
+		public SysOutConsole(boolean ansiConsole) {
+			super(ansiConsole, false);
+		}
+
+		@Override
+		protected void _out(CharSequence text, boolean linebreak) {
+			if (linebreak)
+				System.out.println(text);
+			else
+				System.out.print(text);
+			
+			System.out.flush();
+		}
 	}
 
 	private Object findProperty(String name) {
