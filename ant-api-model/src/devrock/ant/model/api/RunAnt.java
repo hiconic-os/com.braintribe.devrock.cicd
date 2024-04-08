@@ -2,6 +2,9 @@ package devrock.ant.model.api;
 
 import java.util.Map;
 
+import com.braintribe.model.generic.annotation.Initializer;
+import com.braintribe.model.generic.annotation.meta.Alias;
+import com.braintribe.model.generic.annotation.meta.PositionalArguments;
 import com.braintribe.model.generic.annotation.meta.UnsatisfiedBy;
 import com.braintribe.model.generic.eval.EvalContext;
 import com.braintribe.model.generic.eval.Evaluator;
@@ -13,6 +16,8 @@ import com.braintribe.model.service.api.result.Neutral;
 import devrock.ant.model.reason.AntBuildFailed;
 
 @UnsatisfiedBy(AntBuildFailed.class)
+@Alias("ant")
+@PositionalArguments("target")
 public interface RunAnt extends AntRequest {
 	EntityType<RunAnt> T = EntityTypes.T(RunAnt.class);
 	
@@ -22,9 +27,12 @@ public interface RunAnt extends AntRequest {
 	String bufferOutput = "bufferOutput";
 	String ownerInfo = "ownerInfo";
 	
+	@Alias("p")
+	@Initializer("'.'")
 	String getProjectDir();
 	void setProjectDir(String projectDir);
 	
+	@Alias("t")
 	String getTarget();
 	void setTarget(String target);
 	

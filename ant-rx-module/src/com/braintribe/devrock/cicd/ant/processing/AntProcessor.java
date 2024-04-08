@@ -29,6 +29,7 @@ import com.braintribe.cfg.Required;
 import com.braintribe.console.output.ConsoleOutput;
 import com.braintribe.gm.model.reason.Maybe;
 import com.braintribe.gm.model.reason.Reasons;
+import com.braintribe.gm.model.reason.essential.InvalidArgument;
 import com.braintribe.model.processing.service.api.ServiceRequestContext;
 import com.braintribe.model.processing.service.impl.AbstractDispatchingServiceProcessor;
 import com.braintribe.model.processing.service.impl.DispatchConfiguration;
@@ -210,7 +211,11 @@ public class AntProcessor extends AbstractDispatchingServiceProcessor<AntRequest
         Project project = new Project();
         project.init();
         
-        File projectDir = new File(request.getProjectDir());
+        String p = request.getProjectDir();
+        if (p == null)
+        	p = ".";
+		
+        File projectDir = new File(p);
         
         try (Outputs outputs = openOutputs(request, projectDir)) {
 	        DefaultLogger consoleLogger = new DefaultLogger();
@@ -236,7 +241,16 @@ public class AntProcessor extends AbstractDispatchingServiceProcessor<AntRequest
 	        
 	        try {
 	        	projectHelper.parse(project, new File(projectDir, "build.xml"));
-	        	project.executeTarget(request.getTarget());
+	        	
+	        	String target = request.getTarget();
+	        	
+	        	if (target == null)
+					target = project.getDefaultTarget();
+	        	
+	        	if (target == null)
+	        		return Reasons.build(InvalidArgument.T).text("RunAnt.target must not be null for the project " + projectDir.getName() + " as it has no default target").toMaybe();
+	        	
+	        	project.executeTarget(target);
 	        }
 	        catch (BuildException e) {
 	        	outputs.notifyBuildException(e);
