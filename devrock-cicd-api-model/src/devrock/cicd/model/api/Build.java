@@ -13,8 +13,13 @@ public interface Build extends RunStep, StepEndpointOptions {
 	EntityType<Build> T = EntityTypes.T(Build.class);
 
 	String range = "range";
+	String skip = "skip";
 	
 	@Alias("r")
 	String getRange();
 	void setRange(String range);
+	
+	@Alias("s")
+	boolean getSkip();
+	void setSkip(boolean skip);
  }
