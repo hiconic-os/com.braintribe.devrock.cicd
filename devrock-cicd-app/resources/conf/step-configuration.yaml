@@ -4,6 +4,7 @@ steps:
 - &build-artifacts 
   request: !devrock.cicd.model.api.BuildArtifacts
 - request: !devrock.cicd.model.api.CheckLinking
+- request: !devrock.cicd.model.api.RunTests
 - request: !devrock.cicd.model.api.RaiseAndMergeArtifacts
 - request: !devrock.cicd.model.api.PublishArtifacts
 defaultStep: *build-artifacts
