@@ -25,6 +25,7 @@ import org.apache.tools.ant.DefaultLogger;
 import org.apache.tools.ant.Project;
 import org.apache.tools.ant.ProjectHelper;
 
+import com.braintribe.cfg.Configurable;
 import com.braintribe.cfg.Required;
 import com.braintribe.console.output.ConsoleOutput;
 import com.braintribe.gm.model.reason.Maybe;
@@ -47,7 +48,12 @@ public class AntProcessor extends AbstractDispatchingServiceProcessor<AntRequest
 	
 	private static Lock bufferingLock = new ReentrantLock();
 	private StreamPipeFactory streamPipeFactory;
+	private File antLibDir;
 	
+	@Configurable
+	public void setAntLibDir(File antLibDir) {
+		this.antLibDir = antLibDir;
+	}
 	
 	@Required
 	public void setStreamPipeFactory(StreamPipeFactory streamPipeFactory) {
@@ -229,12 +235,15 @@ public class AntProcessor extends AbstractDispatchingServiceProcessor<AntRequest
 	
 	        ProjectHelper projectHelper = ProjectHelper.getProjectHelper();
 	        project.addReference("ant.projectHelper", projectHelper);
+	        
+	        if (antLibDir != null)
+	        	project.setProperty("ant.library.dir", antLibDir.getAbsolutePath());
 	
 	        // transfer properties
 	        for (Map.Entry<String, String> entry: request.getProperties().entrySet()) {
 	        	project.setProperty(entry.getKey(), entry.getValue());
 	        }
-	
+	        
 	        long start = System.currentTimeMillis();
 
 	        Demuxing.bindSubProjectToCurrentThread(project);

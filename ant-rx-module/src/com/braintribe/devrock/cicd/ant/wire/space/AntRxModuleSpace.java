@@ -1,5 +1,7 @@
 package com.braintribe.devrock.cicd.ant.wire.space;
 
+import java.io.File;
+
 import com.braintribe.devrock.cicd.ant.processing.AntProcessor;
 import com.braintribe.utils.stream.api.StreamPipes;
 import com.braintribe.wire.api.annotation.Import;
@@ -10,9 +12,6 @@ import hiconic.rx.module.api.service.ServiceDomainConfiguration;
 import hiconic.rx.module.api.wire.RxModuleContract;
 import hiconic.rx.module.api.wire.RxPlatformContract;
 
-/**
- * This module's javadoc is yet to be written.
- */
 @Managed
 public class AntRxModuleSpace implements RxModuleContract {
 
@@ -28,6 +27,9 @@ public class AntRxModuleSpace implements RxModuleContract {
 	private AntProcessor antProcessor() {
 		AntProcessor bean = new AntProcessor();
 		bean.setStreamPipeFactory(StreamPipes.simpleFactory());
+		String reflexAppDir = System.getProperty("reflex.app.dir");
+		if (reflexAppDir != null)
+			bean.setAntLibDir(new File(reflexAppDir, "lib"));
 		return bean;
 	}
 
