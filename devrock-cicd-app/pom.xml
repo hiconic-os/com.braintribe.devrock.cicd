@@ -7,6 +7,7 @@
     </parent>
     <artifactId>devrock-cicd-app</artifactId>
     <version>1.0.4</version>
+    <packaging>zip</packaging>
     <properties/>
     <dependencies>
         <dependency>
