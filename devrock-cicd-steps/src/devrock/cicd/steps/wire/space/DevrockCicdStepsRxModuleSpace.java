@@ -47,18 +47,18 @@ import hiconic.rx.module.api.wire.RxModuleContract;
 public class DevrockCicdStepsRxModuleSpace implements RxModuleContract {
 	@Override
 	public void configureMainServiceDomain(ServiceDomainConfiguration configuration) {
-		configuration.register(Test1Request.T, test1Processor());
-		configuration.register(Test2Request.T, test2Processor());
-		configuration.register(InitializeExchange.T, initializeExchangeProcessor());
-		configuration.register(EnrichExchangeContext.T, enrichExchangeContextProcessor());
-		configuration.register(AnalyzeCodebase.T, analyzeCodebaseProcessor());
-		configuration.register(PreparePublishing.T, prepareCodebaseForPublishingProcessor());
-		configuration.register(BuildArtifacts.T, buildArtifactsProcessor());
-		configuration.register(CheckLinking.T, checkBuildLinkingProcessor());
-		configuration.register(RunTests.T, runTestsProcessor());
-		configuration.register(RaiseAndMergeArtifacts.T, raiseAndMergeArtifactsProcessor());
-		configuration.register(PublishArtifacts.T, publishArtifactsProcessor());
-		configuration.register(UpdateGithubArtifactIndex.T, updateGithubArtifactIndexProcessor());
+		configuration.bindRequest(Test1Request.T, this::test1Processor);
+		configuration.bindRequest(Test2Request.T, this::test2Processor);
+		configuration.bindRequest(InitializeExchange.T, this::initializeExchangeProcessor);
+		configuration.bindRequest(EnrichExchangeContext.T, this::enrichExchangeContextProcessor);
+		configuration.bindRequest(AnalyzeCodebase.T, this::analyzeCodebaseProcessor);
+		configuration.bindRequest(PreparePublishing.T, this::prepareCodebaseForPublishingProcessor);
+		configuration.bindRequest(BuildArtifacts.T, this::buildArtifactsProcessor);
+		configuration.bindRequest(CheckLinking.T, this::checkBuildLinkingProcessor);
+		configuration.bindRequest(RunTests.T, this::runTestsProcessor);
+		configuration.bindRequest(RaiseAndMergeArtifacts.T, this::raiseAndMergeArtifactsProcessor);
+		configuration.bindRequest(PublishArtifacts.T, this::publishArtifactsProcessor);
+		configuration.bindRequest(UpdateGithubArtifactIndex.T, this::updateGithubArtifactIndexProcessor);
 		
 		configuration.configureModel(this::configureApiModel);
 	}

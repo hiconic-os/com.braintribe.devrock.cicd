@@ -20,7 +20,7 @@ public class AntRxModuleSpace implements RxModuleContract {
 	
 	@Override
 	public void configureMainServiceDomain(ServiceDomainConfiguration configuration) {
-		configuration.register(RunAnt.T, antProcessor());
+		configuration.bindRequest(RunAnt.T, this::antProcessor);
 	}
 	
 	@Managed

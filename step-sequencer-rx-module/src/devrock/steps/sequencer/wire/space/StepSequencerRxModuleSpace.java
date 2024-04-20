@@ -31,8 +31,8 @@ public class StepSequencerRxModuleSpace implements RxModuleContract {
 	
 	@Override
 	public void configureMainServiceDomain(ServiceDomainConfiguration configuration) {
-		configuration.register(RunBuild.T, buildProcessor());
-		configuration.register(RunStep.T, runDefaultStepProcessor());
+		configuration.bindRequest(RunBuild.T, this::buildProcessor);
+		configuration.bindRequest(RunStep.T, this::runDefaultStepProcessor);
 		configuration.addDefaultRequestSupplier(StepSequencer::getDefaultRequest);
 	}
 	

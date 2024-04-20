@@ -17,7 +17,7 @@ public class DevrockCicdGitHubNotificationSpace implements RxModuleContract {
 	
 	@Override
 	public void configureMainServiceDomain(ServiceDomainConfiguration configuration) {
-		configuration.registerInterceptor("github-label-notifier").registerForType(StepRequest.T, gitHubLabelNotifier());
+		configuration.bindInterceptor("github-label-notifier").forType(StepRequest.T).bind(this::gitHubLabelNotifier);
 		configuration.addModel(_GithubNotificationApiModel_.reflection);
 		configuration.configureModel(this::configureApiModel);
 	}
