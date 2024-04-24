@@ -22,6 +22,6 @@ public abstract class Steps {
 	
 	public static StepEvaluator evaluator(File cwd, File exchangeFolder, Function<String, Object> properties) {
 		ServiceDomain mainDomain = platform.serviceDomains().main();
-		return new StepEvaluatorImpl(mainDomain.cmdResolver(), cwd, exchangeFolder, platform.evaluator(), properties);
+		return new StepEvaluatorImpl(mainDomain.systemCmdResolver(), cwd, exchangeFolder, platform.evaluator(), properties);
 	}
 }

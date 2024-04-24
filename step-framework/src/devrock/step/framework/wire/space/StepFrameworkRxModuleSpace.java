@@ -35,6 +35,6 @@ public class StepFrameworkRxModuleSpace implements RxModuleContract, StepFramewo
 	@Override
 	public StepExchangeContext newStepExchangeContext(File projectDir, File configDir,
 			Function<String, Object> propertyLookup) {
-		return new StepExchangeContextImpl(projectDir, configDir, platform.serviceDomains().main().cmdResolver(), propertyLookup);
+		return new StepExchangeContextImpl(projectDir, configDir, platform.serviceDomains().main().systemCmdResolver(), propertyLookup);
 	}
 }

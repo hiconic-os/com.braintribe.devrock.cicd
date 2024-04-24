@@ -68,7 +68,7 @@ public class AntBuildProcessor extends AbstractDispatchingServiceProcessor<RunBu
 	}
 	
 	private void addMdBasedPropertyPropagations(StepRequest stepRequest, Map<String, String> properties) {
-		EntityMdResolver entityMdResolver = serviceDomain.cmdResolver().getMetaData().entity(stepRequest);
+		EntityMdResolver entityMdResolver = serviceDomain.systemCmdResolver().getMetaData().entity(stepRequest);
 
 		for (Property p : stepRequest.entityType().getProperties()) {
 			ArgumentPropagation ap = entityMdResolver.property(p).meta(ArgumentPropagation.T).exclusive();
