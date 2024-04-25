@@ -214,8 +214,6 @@ public class AntProcessor extends AbstractDispatchingServiceProcessor<AntRequest
 	}
 	
 	public Maybe<Neutral> runAnt(ServiceRequestContext requestContext, RunAnt request) {
-        Project project = new Project();
-        project.init();
         
         String p = request.getProjectDir();
         if (p == null)
@@ -224,12 +222,15 @@ public class AntProcessor extends AbstractDispatchingServiceProcessor<AntRequest
         File projectDir = new File(p);
         
         try (Outputs outputs = openOutputs(request, projectDir)) {
-	        DefaultLogger consoleLogger = new DefaultLogger();
-	        consoleLogger.setErrorPrintStream(outputs.err());
-	        consoleLogger.setOutputPrintStream(outputs.out());
-	        consoleLogger.setMessageOutputLevel(Project.MSG_INFO);
-	
-	        project.addBuildListener(consoleLogger);
+            Project project = new Project();
+            
+            DefaultLogger logger = new DefaultLogger();
+            logger.setErrorPrintStream(outputs.err());
+            logger.setOutputPrintStream(outputs.out());
+            logger.setMessageOutputLevel(Project.MSG_INFO);
+            
+	        project.addBuildListener(logger);
+	        project.init();
 	        
 			project.setBaseDir(projectDir);
 	
