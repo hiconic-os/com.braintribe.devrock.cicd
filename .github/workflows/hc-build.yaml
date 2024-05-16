@@ -8,4 +8,4 @@ jobs:
     uses: hiconic-os/hiconic.ci.workflows/.github/workflows/range.yaml@main
     secrets: inherit
     with:
-      range: "[devrock-cicd-app]"
+      range: "[hc-build-app]"
