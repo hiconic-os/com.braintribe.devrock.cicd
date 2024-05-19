@@ -5,7 +5,7 @@ import java.io.PrintStream;
 import org.apache.tools.ant.Project;
 
 public class Demuxing {
-	private static DemuxPrintStream btDemuxOut, btDemuxErr;
+	private static DemuxPrintStream hcDemuxOut, hcDemuxErr;
 	private static PrintStream originalOut, originalErr;
 	private static Object demuxMonitor = new Object();
 	private static volatile boolean configuredDemuxing = false;
@@ -13,20 +13,20 @@ public class Demuxing {
 	public static void bindSubProjectToCurrentThread(Project project) {
 		ensureDemuxing();
 
-		btDemuxOut.bindProjectToCurrentThread(project);
-		btDemuxErr.bindProjectToCurrentThread(project);
+		hcDemuxOut.bindProjectToCurrentThread(project);
+		hcDemuxErr.bindProjectToCurrentThread(project);
 	}
 	
 	public static void unbindSubProjectFromCurrentThread() {
-		btDemuxOut.unbindCurrentThread();
-		btDemuxErr.unbindCurrentThread();
+		hcDemuxOut.unbindCurrentThread();
+		hcDemuxErr.unbindCurrentThread();
 	}
 	
 	private static void ensureDemuxing() {
 		if (!configuredDemuxing)
 			synchronized (demuxMonitor) {
 				if (!configuredDemuxing) {
-					prepareDrDemuxOutputStream();
+					prepareHcDemuxOutputStream();
 					configuredDemuxing = true;
 				}
 			}
@@ -34,14 +34,14 @@ public class Demuxing {
 
 	
 	/** @see DrDemuxOutputStream */
-	private static void prepareDrDemuxOutputStream() {
+	private static void prepareHcDemuxOutputStream() {
 		originalOut = System.out;
 		originalErr = System.err;
 
-		btDemuxOut = new DemuxPrintStream(originalOut, false);
-		btDemuxErr = new DemuxPrintStream(originalErr, true);
+		hcDemuxOut = new DemuxPrintStream(originalOut, false);
+		hcDemuxErr = new DemuxPrintStream(originalErr, true);
 
-		System.setOut(btDemuxOut);
-		System.setErr(btDemuxErr);
+		System.setOut(hcDemuxOut);
+		System.setErr(hcDemuxErr);
 	}
 }

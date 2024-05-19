@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 
 <projectDescription>
-	<name>devrock-cicd-app - com.braintribe.devrock.cicd</name>
+	<name>hc-build-app - com.braintribe.devrock.cicd</name>
 	<buildSpec>
 		<buildCommand>
 			<name>com.braintribe.devrock.arb.builder.ArtifactReflectionBuilder</name>

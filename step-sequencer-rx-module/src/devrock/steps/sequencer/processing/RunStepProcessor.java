@@ -39,7 +39,7 @@ public class RunStepProcessor implements ReasonedServiceProcessor<RunStep, StepR
 			step = configuration.getDefaultStep();
 		
 		if (step == null)
-			Reasons.build(NotFound.T).text("No default step found in step-configuration").toMaybe();
+			return Reasons.build(NotFound.T).text("No default step found in step-configuration").toMaybe();
 		
 		StepRequest stepRequest = step.getRequest();
 		
