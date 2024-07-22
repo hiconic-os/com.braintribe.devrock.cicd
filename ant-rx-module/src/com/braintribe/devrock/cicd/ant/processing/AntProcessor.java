@@ -27,6 +27,8 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintStream;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.io.UncheckedIOException;
 import java.nio.charset.Charset;
 import java.util.Map;
@@ -44,10 +46,14 @@ import com.braintribe.console.output.ConsoleOutput;
 import com.braintribe.gm.model.reason.Maybe;
 import com.braintribe.gm.model.reason.Reasons;
 import com.braintribe.gm.model.reason.essential.InvalidArgument;
+import com.braintribe.model.processing.service.api.OutputConfig;
+import com.braintribe.model.processing.service.api.OutputConfigAspect;
+import com.braintribe.model.processing.service.api.ServiceRequestContext;
 import com.braintribe.model.processing.service.impl.AbstractDispatchingServiceProcessor;
 import com.braintribe.model.processing.service.impl.DispatchConfiguration;
 import com.braintribe.model.service.api.result.Neutral;
 import com.braintribe.utils.IOTools;
+import com.braintribe.utils.collection.impl.AttributeContexts;
 import com.braintribe.utils.lcd.StringTools;
 import com.braintribe.utils.stream.api.StreamPipe;
 import com.braintribe.utils.stream.api.StreamPipeFactory;
@@ -74,7 +80,7 @@ public class AntProcessor extends AbstractDispatchingServiceProcessor<AntRequest
 
 	@Override
 	protected void configureDispatching(DispatchConfiguration<AntRequest, Object> dispatching) {
-		dispatching.registerReasoned(RunAnt.T, (c, r) -> runAnt(r));
+		dispatching.registerReasoned(RunAnt.T, this::runAnt);
 	}
 
 	interface Outputs extends Closeable {
@@ -189,13 +195,27 @@ public class AntProcessor extends AbstractDispatchingServiceProcessor<AntRequest
 		if (e == null)
 			return text("");
 
-		ConsoleOutput errorOutput = text(e.getMessage());
+		ConsoleOutput errorOutput = text(getErrorText(e));
 
 		return sequence( //
 				text("\nBUILD FAILED WITH:\n"), //
 				errorOutput, //
 				text("\n\n") //
 		);
+	}
+	
+	private String getErrorText(Throwable e) {
+		OutputConfig oc = AttributeContexts.peek().findOrDefault(OutputConfigAspect.class, OutputConfig.empty);
+		if (oc.verbose()) {
+			StringWriter stringWriter = new StringWriter();
+			PrintWriter printWriter = new PrintWriter(stringWriter);
+			e.printStackTrace(printWriter);
+			printWriter.flush();
+			
+			return stringWriter.toString();
+		}
+		else
+			return e.getMessage();
 	}
 
 	private Outputs openOutputs(RunAnt request, File projectDir) {
@@ -205,7 +225,7 @@ public class AntProcessor extends AbstractDispatchingServiceProcessor<AntRequest
 		return new BufferedOutputs(request, projectDir);
 	}
 
-	private Maybe<Neutral> runAnt(RunAnt request) {
+	private Maybe<Neutral> runAnt(ServiceRequestContext context, RunAnt request) {
 		String buildXmlFile = request.getBuildFile();
 		if (buildXmlFile == null)
 			buildXmlFile = "build.xml";
