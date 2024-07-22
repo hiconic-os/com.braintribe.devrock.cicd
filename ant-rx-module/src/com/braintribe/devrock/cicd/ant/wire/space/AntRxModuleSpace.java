@@ -41,8 +41,15 @@ public class AntRxModuleSpace implements RxModuleContract {
 		AntProcessor bean = new AntProcessor();
 		bean.setStreamPipeFactory(StreamPipes.simpleFactory());
 		String reflexAppDir = System.getProperty("reflex.app.dir");
-		if (reflexAppDir != null)
-			bean.setAntLibDir(new File(reflexAppDir, "lib"));
+		if (reflexAppDir != null) {
+			File privateLibDir = new File(reflexAppDir, "lib");
+			File sharedLibDir = new File(reflexAppDir, "../shared-lib");
+			
+			if (privateLibDir.exists())
+				bean.setAntLibDir(privateLibDir);
+			else if (sharedLibDir.exists())
+				bean.setAntLibDir(sharedLibDir);
+		}
 		return bean;
 	}
 
