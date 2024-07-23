@@ -204,18 +204,19 @@ public class AntProcessor extends AbstractDispatchingServiceProcessor<AntRequest
 		);
 	}
 	
-	private String getErrorText(Throwable e) {
+	private String getErrorText(BuildException e) {
 		OutputConfig oc = AttributeContexts.peek().findOrDefault(OutputConfigAspect.class, OutputConfig.empty);
 		if (oc.verbose()) {
 			StringWriter stringWriter = new StringWriter();
 			PrintWriter printWriter = new PrintWriter(stringWriter);
+			printWriter.append(e.getLocation().toString());
 			e.printStackTrace(printWriter);
 			printWriter.flush();
 			
 			return stringWriter.toString();
 		}
 		else
-			return e.getMessage();
+			return e.toString();
 	}
 
 	private Outputs openOutputs(RunAnt request, File projectDir) {
@@ -280,7 +281,7 @@ public class AntProcessor extends AbstractDispatchingServiceProcessor<AntRequest
 				project.executeTarget(target);
 			} catch (BuildException e) {
 				outputs.notifyBuildException(e);
-				return Reasons.build(AntBuildFailed.T).text(e.getMessage()).toMaybe();
+				return Reasons.build(AntBuildFailed.T).text(e.toString()).toMaybe();
 			} finally {
 				Demuxing.unbindSubProjectFromCurrentThread();
 
