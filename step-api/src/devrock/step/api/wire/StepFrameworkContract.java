@@ -17,4 +17,5 @@ import devrock.step.api.StepExchangeContextFactory;
 import hiconic.rx.module.api.wire.RxExportContract;
 
 public interface StepFrameworkContract extends RxExportContract, StepExchangeContextFactory {
+	// nothing to add
 }

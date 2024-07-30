@@ -93,14 +93,11 @@ public class PublishArtifactsProcessor extends SpawningServiceProcessor<PublishA
 					}
 				}
 				
-				PublishArtifactsResponse response = PublishArtifactsResponse.T.create();
-				
 				error = uploadArtifacts();
-				
 				if (error != null)
 					return error.asMaybe();
-				
-				return Maybe.complete(response);
+
+				return Maybe.complete(PublishArtifactsResponse.T.create());
 			}
 
 			private File hasDevEnvParent(File currentWorkingDirectory) {
@@ -176,5 +173,5 @@ public class PublishArtifactsProcessor extends SpawningServiceProcessor<PublishA
 				}
 			}
 		};
-	};
+	}
 }

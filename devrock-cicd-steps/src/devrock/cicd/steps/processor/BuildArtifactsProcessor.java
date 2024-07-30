@@ -40,7 +40,6 @@ import com.braintribe.devrock.model.repository.RepositoryConfiguration;
 import com.braintribe.gm.model.reason.Maybe;
 import com.braintribe.gm.model.reason.Reason;
 import com.braintribe.gm.model.reason.Reasons;
-import com.braintribe.gm.model.reason.essential.InvalidArgument;
 import com.braintribe.model.artifact.analysis.AnalysisArtifact;
 import com.braintribe.model.artifact.compiled.CompiledArtifactIdentification;
 import com.braintribe.model.artifact.consumable.Artifact;
@@ -79,10 +78,6 @@ public class BuildArtifactsProcessor extends SpawningServiceProcessor<BuildArtif
 			@Override
 			protected Maybe<BuildArtifactsResponse> process() {
 				Consumer<LocalArtifact> handler = BuildHandlers.getHandler(context, request, RunInstall.T);
-				
-				
-				if (handler == null)
-					return Reasons.build(InvalidArgument.T).text("Transitive property BuildArtifacts.handler must not be null").toMaybe();
 				
 				CodebaseAnalysis analysis = request.getCodebaseAnalysis();
 				CodebaseDependencyAnalysis dependencyAnalysis = request.getCodebaseDependencyAnalysis();
@@ -124,17 +119,15 @@ public class BuildArtifactsProcessor extends SpawningServiceProcessor<BuildArtif
 				
 				
 				Maybe<Map<LocalArtifact, String>> solutionHashesMaybe = resolveSolutionHashes(buildArtifacts);
-				
 				if (solutionHashesMaybe.isUnsatisfied())
 					return solutionHashesMaybe.whyUnsatisfied();
 				
 				Map<LocalArtifact, String> solutionHashes = solutionHashesMaybe.get();
 					
 				for (LocalArtifact localArtifact: buildArtifacts) {
-					String commitHash = localArtifact.getCommitHash();
-					
 					Map<String, String> properties = new LinkedHashMap<>();
 					
+					String commitHash = localArtifact.getCommitHash();
 					if (commitHash != null) {
 						properties.put("commit-hash", commitHash);
 					}
@@ -167,12 +160,17 @@ public class BuildArtifactsProcessor extends SpawningServiceProcessor<BuildArtif
 				CodebaseAnalysis codebaseAnalysis = request.getCodebaseAnalysis();
 				File groupDir = new File(codebaseAnalysis.getBasePath());
 				
-				List<LocalArtifact> bundleArtifacts = buildArtifacts.stream().filter(LocalArtifact::getBundle).collect(Collectors.toList());
-
 				if (!buildArtifacts.isEmpty()) {
-					
-					LazyInitialized<Reason> failure = new LazyInitialized<>(() -> Reasons.build(SolutionHashResolutionFailed.T).text("Error while resolving solution hashes for built artifacts that are bundlers").toReason());
-					
+					List<LocalArtifact> bundleArtifacts = buildArtifacts.stream() //
+							.filter(LocalArtifact::getBundle) //
+							.collect(Collectors.toList());
+
+					LazyInitialized<Reason> failure = new LazyInitialized<>( //
+							() -> Reasons.build(SolutionHashResolutionFailed.T) //
+									.text("Error while resolving solution hashes for built artifacts that are bundlers") //
+									.toReason() //
+					);
+
 					try (SolutionHashResolver resolver = new SolutionHashResolver(buildArtifacts, groupDir)) {
 						for (LocalArtifact buildArtifact: bundleArtifacts) {
 							Maybe<String> maybe = resolver.resolveCurrentSolutionHash(buildArtifact);

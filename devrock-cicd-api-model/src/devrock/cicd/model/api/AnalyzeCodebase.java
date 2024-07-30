@@ -51,6 +51,10 @@ public interface AnalyzeCodebase extends StepRequest, EnvironmentAware {
 	String getPath();
 	void setPath(String path);
 
+	/**
+	 * Artifacts range expression. Like {@code [my-artifact]}, {@code [my-artifact1]+[my-artifact2]} or {@code .}, which
+	 * represents all artifacts in given group.
+	 */
 	String getBuildArtifacts();
 	void setBuildArtifacts(String buildArtifacts);
 
@@ -59,7 +63,7 @@ public interface AnalyzeCodebase extends StepRequest, EnvironmentAware {
 
 	boolean getAllowReleaseViewBuilding();
 	void setAllowReleaseViewBuilding(boolean allowReleaseViewBuilding);
-	
+
 	@Override
 	EvalContext<? extends AnalyzeCodebaseResponse> eval(Evaluator<ServiceRequest> evaluator);
 

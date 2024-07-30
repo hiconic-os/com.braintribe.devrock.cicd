@@ -38,8 +38,8 @@ import devrock.cicd.model.api.reason.CommandFailed;
 public class ProcessExecution {
 	
 	private static class ProcessStreamReader extends Thread {
-		private InputStream in;
-		private StringBuilder buffer = new StringBuilder();
+		private final InputStream in;
+		private final StringBuilder buffer = new StringBuilder();
 		private ProcessNotificationListener listener;
 		private OutputStream redirect;
 		
@@ -72,11 +72,8 @@ public class ProcessExecution {
 						if (buffer.length() > 0) buffer.append('\n');
 						buffer.append(line);
 					}
-				}
-				catch (InterruptedIOException e) {
-				}
-				catch (IOException e) {
-					
+				} catch (IOException e) {
+					// ignored
 				}
 			}
 		}

@@ -29,16 +29,16 @@ public interface AnalyzeCodebaseResponse extends StepResponse {
 	String dependencyAnalysis = "dependencyAnalysis";
 	String dependencyResolution = "dependencyResolution";
 	String gitContext = "gitContext";
-	
+
 	CodebaseAnalysis getAnalysis();
 	void setAnalysis(CodebaseAnalysis analysis);
 	
 	CodebaseDependencyAnalysis getDependencyAnalysis();
 	void setDependencyAnalysis(CodebaseDependencyAnalysis dependencyAnalysis);
-	
+
 	AnalysisArtifactResolution getDependencyResolution();
 	void setDependencyResolution(AnalysisArtifactResolution dependencyResolution);
-	
+
 	GitContext getGitContext();
 	void setGitContext(GitContext gitContext);
 }

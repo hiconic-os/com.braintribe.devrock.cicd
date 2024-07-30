@@ -23,6 +23,7 @@ import hiconic.rx.module.api.wire.RxPlatformContract;
 import hiconic.rx.platform.RxPlatform;
 
 public abstract class Steps {
+
 	private static RxPlatformContract platform = new RxPlatform().getContract();
 	
 	public static StepEvaluator evaluator(File exchangeFolder) {
@@ -37,4 +38,5 @@ public abstract class Steps {
 		ServiceDomain mainDomain = platform.serviceDomains().main();
 		return new StepEvaluatorImpl(mainDomain.systemCmdResolver(), cwd, exchangeFolder, platform.evaluator(), properties);
 	}
+
 }
