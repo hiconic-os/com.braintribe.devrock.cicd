@@ -26,11 +26,10 @@ import com.braintribe.utils.StringTools;
 
 import devrock.step.model.api.RunStep;
 import devrock.step.model.api.StepRequest;
-import devrock.step.model.api.StepResponse;
 import devrock.step.sequencer.model.configuration.Step;
 import devrock.step.sequencer.model.configuration.StepConfiguration;
 
-public class RunStepProcessor implements ReasonedServiceProcessor<RunStep, StepResponse> {
+public class RunStepProcessor implements ReasonedServiceProcessor<RunStep, Object> {
 	private StepConfiguration configuration;
 	
 	@Required
@@ -39,7 +38,7 @@ public class RunStepProcessor implements ReasonedServiceProcessor<RunStep, StepR
 	}
 
 	@Override
-	public Maybe<? extends StepResponse> processReasoned(ServiceRequestContext context, RunStep request) {
+	public Maybe<?> processReasoned(ServiceRequestContext context, RunStep request) {
 		
 		Maybe<Step> stepMaybe = resolveStep(request.getStep());
 		

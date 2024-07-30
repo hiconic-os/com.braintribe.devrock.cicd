@@ -24,7 +24,6 @@ import java.util.function.Function;
 import com.braintribe.cfg.Configurable;
 import com.braintribe.cfg.Required;
 import com.braintribe.common.attribute.common.CallerEnvironment;
-import com.braintribe.console.ConsoleOutputs;
 import com.braintribe.gm.model.reason.Maybe;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.processing.service.api.ProceedContext;
@@ -40,13 +39,12 @@ import devrock.step.api.StepExchangeContextFactory;
 import devrock.step.model.api.RunStep;
 import devrock.step.model.api.StepEndpointOptions;
 import devrock.step.model.api.StepRequest;
-import devrock.step.model.api.StepResponse;
 import devrock.step.model.api.endpoint.Stepping;
 import devrock.step.sequencer.model.configuration.Step;
 import devrock.step.sequencer.model.configuration.StepConfiguration;
 import hiconic.rx.module.api.endpoint.EndpointInput;
 
-public class StepSequencer implements ReasonedServiceAroundProcessor<StepRequest, StepResponse> {
+public class StepSequencer implements ReasonedServiceAroundProcessor<StepRequest, Object> {
 	private StepConfiguration configuration;
 	private boolean externallySequenced;
 	private StepExchangeContextFactory stepExchangeContextFactory;
@@ -67,12 +65,12 @@ public class StepSequencer implements ReasonedServiceAroundProcessor<StepRequest
 	}
 	
 	@Override
-	public Maybe<? extends StepResponse> processReasoned(ServiceRequestContext context, StepRequest triggerRequest,
+	public Maybe<?> processReasoned(ServiceRequestContext context, StepRequest triggerRequest,
 			ProceedContext proceedContext) {
 
 		EndpointInput input = EndpointInput.get();
 		
-		StepExchangeContext exchangeContext = buildExchangeContext(context, input);
+		StepExchangeContext exchangeContext = buildExchangeContext(input);
 		
 		ServiceRequestContextBuilder builder = context.derive();
 		builder.setAttribute(StepExchangeContextAttribute.class, exchangeContext);
@@ -81,7 +79,7 @@ public class StepSequencer implements ReasonedServiceAroundProcessor<StepRequest
 		return processSequence(enrichedRequestContext, input, exchangeContext, triggerRequest, proceedContext);
 	}
 	
-	private StepExchangeContext buildExchangeContext(ServiceRequestContext context, EndpointInput input) {
+	private StepExchangeContext buildExchangeContext(EndpointInput input) {
 		
 		File projectDir = CallerEnvironment.getCurrentWorkingDirectory();
 		File configFolder = new File(projectDir, ".step-exchange");
@@ -97,7 +95,7 @@ public class StepSequencer implements ReasonedServiceAroundProcessor<StepRequest
 		return stepExchangeContextFactory.newStepExchangeContext(projectDir, configFolder, propertyLookup);
 	}
 	
-	public Maybe<? extends StepResponse> processSequence(ServiceRequestContext enrichedRequestContext, EndpointInput input, StepExchangeContext exchangeContext, StepRequest triggerRequest,
+	public Maybe<?> processSequence(ServiceRequestContext enrichedRequestContext, EndpointInput input, StepExchangeContext exchangeContext, StepRequest triggerRequest,
 			ProceedContext proceedContext) {
 		
 		Stepping stepping = input.findInput(Stepping.T);
@@ -107,7 +105,7 @@ public class StepSequencer implements ReasonedServiceAroundProcessor<StepRequest
 		
 		List<StepRequest> predecessorSequence = determineSequence(input, triggerRequest);
 		
-		Maybe<? extends StepResponse> maybe = null;
+		Maybe<?> maybe = null;
 		
 		for (StepRequest request: predecessorSequence) {
 			String stepName = StringTools.camelCaseToDashSeparated(request.entityType().getShortName());

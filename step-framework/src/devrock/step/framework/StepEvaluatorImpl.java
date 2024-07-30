@@ -28,7 +28,6 @@ import com.braintribe.model.service.api.ServiceRequest;
 import devrock.step.api.StepEvaluator;
 import devrock.step.api.StepExchangeContextAttribute;
 import devrock.step.model.api.StepRequest;
-import devrock.step.model.api.StepResponse;
 
 public class StepEvaluatorImpl extends StepExchangeContextImpl implements StepEvaluator {
 
@@ -56,7 +55,7 @@ public class StepEvaluatorImpl extends StepExchangeContextImpl implements StepEv
 		try {
 			BasicCallerEnvironment callerEnvironment = new BasicCallerEnvironment(true, cwd);
 	
-			EvalContext<? extends StepResponse> evalContext = stepRequest.eval(evaluator);
+			EvalContext<?> evalContext = stepRequest.eval(evaluator);
 			evalContext.setAttribute(StepExchangeContextAttribute.class, this);
 			evalContext.setAttribute(CallerEnvironment.class, callerEnvironment);
 	

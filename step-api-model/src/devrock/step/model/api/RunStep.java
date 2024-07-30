@@ -31,5 +31,5 @@ public interface RunStep extends ServiceRequest {
 	void setStep(String step);
 	
 	@Override
-	EvalContext<? extends StepResponse> eval(Evaluator<ServiceRequest> evaluator);
+	EvalContext<?> eval(Evaluator<ServiceRequest> evaluator);
 }

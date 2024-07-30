@@ -24,27 +24,22 @@ import devrock.step.api.StepExchangeContextAttribute;
 import devrock.step.model.api.StepRequest;
 import devrock.step.model.api.StepResponse;
 
-public class StepAroundProcessor implements ReasonedServiceAroundProcessor<StepRequest, StepResponse>{
-	
+public class StepAroundProcessor implements ReasonedServiceAroundProcessor<StepRequest, Object> {
+
 	@Override
-	public Maybe<? extends StepResponse> processReasoned(ServiceRequestContext context, StepRequest request,
-			ProceedContext proceedContext) {
+	public Maybe<?> processReasoned(ServiceRequestContext context, StepRequest request, ProceedContext proceedContext) {
 		StepExchangeContext exchangeContext = context.getAttribute(StepExchangeContextAttribute.class);
-		
+
 		Reason error = exchangeContext.loadProperties(request);
-		
 		if (error != null)
 			return error.asMaybe();
-		
-		Maybe<? extends StepResponse> maybe = proceedContext.proceedReasoned(request);
-		
-		if (maybe.isSatisfied()) {
-			StepResponse response = maybe.get();
-			
-			if (response != null)
-				exchangeContext.storeProperties(response);
-		}
-		
+
+		Maybe<?> maybe = proceedContext.proceedReasoned(request);
+
+		if (maybe.isSatisfied())
+			if (maybe.get() instanceof StepResponse stepResponse)
+				exchangeContext.storeProperties(stepResponse);
+
 		return maybe;
 	}
 }
