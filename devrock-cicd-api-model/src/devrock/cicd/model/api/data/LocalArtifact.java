@@ -19,8 +19,9 @@ import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EntityTypes;
 
 public interface LocalArtifact extends GenericEntity {
+
 	EntityType<LocalArtifact> T = EntityTypes.T(LocalArtifact.class);
-	
+
 	String folderName = "folderName";
 	String identification = "identification";
 	String artifactIdentification = "artifactIdentification";
@@ -31,7 +32,7 @@ public interface LocalArtifact extends GenericEntity {
 	String test = "test";
 	String bundle = "bundle";
 	String commitHash = "commitHash";
-	
+
 	String getFolderName();
 	void setFolderName(String folderName);
 
@@ -43,30 +44,34 @@ public interface LocalArtifact extends GenericEntity {
 
 	VersionedArtifactIdentification getArtifactIdentification();
 	void setArtifactIdentification(VersionedArtifactIdentification artifactIdentification);
-	
+
 	String getPackaging();
 	void setPackaging(String packaging);
-	
+
 	BuildReason getBuildReason();
 	void setBuildReason(BuildReason buildReason);
-	
+
 	boolean getTest();
 	void setTest(boolean test);
-	
+
 	String getCommitHash();
 	void setCommitHash(String commitHash);
-	
+
 	boolean getBundle();
 	void setBundle(boolean bundle);
-	
+
 	boolean getIntegrationTest();
 	void setIntegrationTest(boolean integrationTest);
 
 	boolean getReleaseView();
 	void setReleaseView(boolean releaseView);
 
+	boolean getNpmPackage();
+	void setNpmPackage(boolean npmPackage);
+
 	@Override
 	default String asString() {
 		return getIdentification();
 	}
+
 }

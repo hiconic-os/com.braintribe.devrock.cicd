@@ -19,6 +19,7 @@ import com.braintribe.model.generic.reflection.EntityTypes;
 
 import devrock.cicd.model.api.data.CodebaseAnalysis;
 import devrock.cicd.model.api.data.CodebaseDependencyAnalysis;
+import devrock.cicd.model.api.data.CodebaseSummary;
 import devrock.cicd.model.api.data.GitContext;
 import devrock.step.model.api.StepResponse;
 
@@ -32,7 +33,10 @@ public interface AnalyzeCodebaseResponse extends StepResponse {
 
 	CodebaseAnalysis getAnalysis();
 	void setAnalysis(CodebaseAnalysis analysis);
-	
+
+	CodebaseSummary getSummary();
+	void setSummary(CodebaseSummary summary);
+
 	CodebaseDependencyAnalysis getDependencyAnalysis();
 	void setDependencyAnalysis(CodebaseDependencyAnalysis dependencyAnalysis);
 

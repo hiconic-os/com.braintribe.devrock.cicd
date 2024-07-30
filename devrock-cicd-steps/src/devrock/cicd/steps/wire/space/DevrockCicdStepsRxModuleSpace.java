@@ -29,6 +29,7 @@ import devrock.cicd.model.api.MultiThreadedStepRequest;
 import devrock.cicd.model.api.PreparePublishing;
 import devrock.cicd.model.api.PreparePublishingResponse;
 import devrock.cicd.model.api.PublishArtifacts;
+import devrock.cicd.model.api.PublishNpmPackages;
 import devrock.cicd.model.api.RaiseAndMergeArtifacts;
 import devrock.cicd.model.api.RunTests;
 import devrock.cicd.model.api.UpdateGithubArtifactIndex;
@@ -42,6 +43,7 @@ import devrock.cicd.steps.processor.EnrichExchangeContextProcessor;
 import devrock.cicd.steps.processor.InitializeExchangeProcessor;
 import devrock.cicd.steps.processor.PreparePublishingProcessor;
 import devrock.cicd.steps.processor.PublishArtifactsProcessor;
+import devrock.cicd.steps.processor.PublishNpmPackagesProcessor;
 import devrock.cicd.steps.processor.RaiseAndMergeArtifactsProcessor;
 import devrock.cicd.steps.processor.RunTestsProcessor;
 import devrock.cicd.steps.processor.UpdateGithubArtifactIndexProcessor;
@@ -71,6 +73,7 @@ public class DevrockCicdStepsRxModuleSpace implements RxModuleContract {
 		configuration.bindRequest(RunTests.T, this::runTestsProcessor);
 		configuration.bindRequest(RaiseAndMergeArtifacts.T, this::raiseAndMergeArtifactsProcessor);
 		configuration.bindRequest(PublishArtifacts.T, this::publishArtifactsProcessor);
+		configuration.bindRequest(PublishNpmPackages.T, this::publishNpmPackagesProcessor);
 		configuration.bindRequest(UpdateGithubArtifactIndex.T, this::updateGithubArtifactIndexProcessor);
 		
 		configuration.configureModel(this::configureApiModel);
@@ -166,6 +169,11 @@ public class DevrockCicdStepsRxModuleSpace implements RxModuleContract {
 	@Managed
 	private PublishArtifactsProcessor publishArtifactsProcessor() {
 		return new PublishArtifactsProcessor();
+	}
+	
+	@Managed
+	private PublishNpmPackagesProcessor publishNpmPackagesProcessor() {
+		return new PublishNpmPackagesProcessor();
 	}
 	
 	@Managed

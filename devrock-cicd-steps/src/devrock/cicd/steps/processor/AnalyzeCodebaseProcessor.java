@@ -72,6 +72,7 @@ import devrock.cicd.model.api.AnalyzeCodebaseResponse;
 import devrock.cicd.model.api.data.BuildReason;
 import devrock.cicd.model.api.data.CodebaseAnalysis;
 import devrock.cicd.model.api.data.CodebaseDependencyAnalysis;
+import devrock.cicd.model.api.data.CodebaseSummary;
 import devrock.cicd.model.api.data.GitContext;
 import devrock.cicd.model.api.data.LocalArtifact;
 import devrock.cicd.model.api.reason.FolderArtifactIdentificationFailed;
@@ -91,6 +92,7 @@ public class AnalyzeCodebaseProcessor extends SpawningServiceProcessor<AnalyzeCo
 	private class StatefulCodebaseAnalysis extends StatefulServiceProcessor {
 		
 		private final CodebaseAnalysis codebaseAnalysis = CodebaseAnalysis.T.create();
+		private final CodebaseSummary codebaseSummary = CodebaseSummary.T.create();
 		private CodebaseDependencyAnalysis dependencyAnalysis;
 		private final GitContext gitContext = GitContext.T.create();
 		private final Map<String, LocalArtifact> localArtifactsByFolderName = new TreeMap<>();
@@ -133,6 +135,7 @@ public class AnalyzeCodebaseProcessor extends SpawningServiceProcessor<AnalyzeCo
 			
 			AnalyzeCodebaseResponse response = AnalyzeCodebaseResponse.T.create();
 			response.setAnalysis(codebaseAnalysis);
+			response.setSummary(codebaseSummary);
 			response.setDependencyAnalysis(dependencyAnalysis);
 			response.setDependencyResolution(dependencyAnalysis.getResolution());
 			response.setGitContext(gitContext);
@@ -347,9 +350,9 @@ public class AnalyzeCodebaseProcessor extends SpawningServiceProcessor<AnalyzeCo
 			List<LocalArtifact> buildLinkingChecks = codebaseAnalysis.getBuildLinkingChecks();
 			List<LocalArtifact> buildTests = codebaseAnalysis.getBuildTests();
 			
+			List<LocalArtifact> builds = new ArrayList<>();
 			List<LocalArtifact> testArtifacts = new ArrayList<>();
 			
-			List<LocalArtifact> builds = new ArrayList<>(localArtifactsByFolderName.size());
 			for (LocalArtifact localArtifact: localArtifactsByFolderName.values()) {
 				artifacts.add(localArtifact);
 
@@ -366,6 +369,8 @@ public class AnalyzeCodebaseProcessor extends SpawningServiceProcessor<AnalyzeCo
 					}
 					else {
 						builds.add(localArtifact);
+						if (localArtifact.getNpmPackage())
+							codebaseSummary.setHasNpmBuild(true);
 					}
 				}
 			}
@@ -476,14 +481,14 @@ public class AnalyzeCodebaseProcessor extends SpawningServiceProcessor<AnalyzeCo
 			String packaging = Optional.ofNullable(localArtifact.getPackaging()).map(String::toLowerCase).orElse("jar");
 			
 			switch (packaging) {
-			case "war":
-			case "ear":
-			case "bundle":
-			case "zip":
-				localArtifact.setBundle(true);
-				break;
-			default:
-				break;
+				case "war":
+				case "ear":
+				case "bundle":
+				case "zip":
+					localArtifact.setBundle(true);
+					break;
+				default:
+					break;
 			}
 			
 			String artifactId = localArtifact.getArtifactIdentification().getArtifactId();
@@ -497,6 +502,14 @@ public class AnalyzeCodebaseProcessor extends SpawningServiceProcessor<AnalyzeCo
 			else if ("true".equals( ca.getProperties().get("release-view"))) {
 				localArtifact.setReleaseView(true);
 			}
+
+			if (isNpmPackage(ca))
+				localArtifact.setNpmPackage(true);
+		}
+
+		private boolean isNpmPackage(CompiledArtifact ca) {
+			return "model".equals(ca.getArchetype()) || //
+					ca.getProperties().containsKey("npmPackaging");
 		}
 
 		private Maybe<LocalArtifact> readLocalArtifact(File pomFile) {
