@@ -31,6 +31,7 @@ import devrock.cicd.model.api.PreparePublishingResponse;
 import devrock.cicd.model.api.PublishArtifacts;
 import devrock.cicd.model.api.PublishNpmPackages;
 import devrock.cicd.model.api.RaiseAndMergeArtifacts;
+import devrock.cicd.model.api.ReadFromExchangeContext;
 import devrock.cicd.model.api.RunTests;
 import devrock.cicd.model.api.UpdateGithubArtifactIndex;
 import devrock.cicd.model.api.data.CodebaseDependencyAnalysis;
@@ -45,6 +46,7 @@ import devrock.cicd.steps.processor.PreparePublishingProcessor;
 import devrock.cicd.steps.processor.PublishArtifactsProcessor;
 import devrock.cicd.steps.processor.PublishNpmPackagesProcessor;
 import devrock.cicd.steps.processor.RaiseAndMergeArtifactsProcessor;
+import devrock.cicd.steps.processor.ReadFromExchangeContextProcessor;
 import devrock.cicd.steps.processor.RunTestsProcessor;
 import devrock.cicd.steps.processor.UpdateGithubArtifactIndexProcessor;
 import devrock.cicd.steps.processor.test.Test1Processor;
@@ -66,6 +68,7 @@ public class DevrockCicdStepsRxModuleSpace implements RxModuleContract {
 		configuration.bindRequest(Test2Request.T, this::test2Processor);
 		configuration.bindRequest(InitializeExchange.T, this::initializeExchangeProcessor);
 		configuration.bindRequest(EnrichExchangeContext.T, this::enrichExchangeContextProcessor);
+		configuration.bindRequest(ReadFromExchangeContext.T, this::readFromExchangeContextProcessor);
 		configuration.bindRequest(AnalyzeCodebase.T, this::analyzeCodebaseProcessor);
 		configuration.bindRequest(PreparePublishing.T, this::prepareCodebaseForPublishingProcessor);
 		configuration.bindRequest(BuildArtifacts.T, this::buildArtifactsProcessor);
@@ -140,7 +143,12 @@ public class DevrockCicdStepsRxModuleSpace implements RxModuleContract {
 	private EnrichExchangeContextProcessor enrichExchangeContextProcessor() {
 		return new EnrichExchangeContextProcessor();
 	}
-	
+
+	@Managed
+	private ReadFromExchangeContextProcessor readFromExchangeContextProcessor() {
+		return new ReadFromExchangeContextProcessor();
+	}
+
 	@Managed
 	private AnalyzeCodebaseProcessor analyzeCodebaseProcessor() {
 		return new AnalyzeCodebaseProcessor();
