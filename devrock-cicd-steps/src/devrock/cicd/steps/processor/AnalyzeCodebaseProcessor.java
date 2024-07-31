@@ -508,8 +508,10 @@ public class AnalyzeCodebaseProcessor extends SpawningServiceProcessor<AnalyzeCo
 		}
 
 		private boolean isNpmPackage(CompiledArtifact ca) {
-			return "model".equals(ca.getArchetype()) || //
-					ca.getProperties().containsKey("npmPackaging");
+			Map<String, String> props = ca.getProperties();
+
+			return "model".equals(props.get("archetype")) || //
+					props.containsKey("npmPackaging");
 		}
 
 		private Maybe<LocalArtifact> readLocalArtifact(File pomFile) {
