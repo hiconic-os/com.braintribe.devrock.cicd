@@ -24,6 +24,7 @@ import devrock.cicd.model.api.CheckLinking;
 import devrock.cicd.model.api.DistributedLocking;
 import devrock.cicd.model.api.EnrichExchangeContext;
 import devrock.cicd.model.api.EnvironmentAware;
+import devrock.cicd.model.api.GenerateShellCompletionScript;
 import devrock.cicd.model.api.InitializeExchange;
 import devrock.cicd.model.api.MultiThreadedStepRequest;
 import devrock.cicd.model.api.PreparePublishing;
@@ -49,6 +50,7 @@ import devrock.cicd.steps.processor.RaiseAndMergeArtifactsProcessor;
 import devrock.cicd.steps.processor.ReadFromExchangeContextProcessor;
 import devrock.cicd.steps.processor.RunTestsProcessor;
 import devrock.cicd.steps.processor.UpdateGithubArtifactIndexProcessor;
+import devrock.cicd.steps.processor.completion.GenerateShellCompletionScriptProcessor;
 import devrock.cicd.steps.processor.test.Test1Processor;
 import devrock.cicd.steps.processor.test.Test2Processor;
 import devrock.step.model.api.meta.ArgumentPropagation;
@@ -78,6 +80,8 @@ public class DevrockCicdStepsRxModuleSpace implements RxModuleContract {
 		configuration.bindRequest(PublishArtifacts.T, this::publishArtifactsProcessor);
 		configuration.bindRequest(PublishNpmPackages.T, this::publishNpmPackagesProcessor);
 		configuration.bindRequest(UpdateGithubArtifactIndex.T, this::updateGithubArtifactIndexProcessor);
+
+		configuration.bindRequest(GenerateShellCompletionScript.T, this::generateShellCompletionScriptProcessor);
 		
 		configuration.configureModel(this::configureApiModel);
 	}
@@ -193,4 +197,10 @@ public class DevrockCicdStepsRxModuleSpace implements RxModuleContract {
 	private UpdateGithubArtifactIndexProcessor updateGithubArtifactIndexProcessor() {
 		return new UpdateGithubArtifactIndexProcessor();
 	}
+
+	@Managed
+	private GenerateShellCompletionScriptProcessor generateShellCompletionScriptProcessor() {
+		return new GenerateShellCompletionScriptProcessor();
+	}
+
 }

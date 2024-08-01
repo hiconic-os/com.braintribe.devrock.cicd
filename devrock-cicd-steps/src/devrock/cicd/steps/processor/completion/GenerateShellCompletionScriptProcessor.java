@@ -72,7 +72,7 @@ public class GenerateShellCompletionScriptProcessor implements ServiceProcessor<
 	}
 
 	private void init(GenerateShellCompletionScript request) {
-		Map<String, GmMetaModel> domainNameToModel = request.getDomainNameToModel();
+		Map<String, GmMetaModel> domainNameToModel = request.getServiceDomains().getDomainNameToModel();
 
 		Collection<GmMetaModel> models = domainNameToModel.values();
 
