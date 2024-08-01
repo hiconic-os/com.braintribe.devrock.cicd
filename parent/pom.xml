@@ -28,6 +28,8 @@ limitations under the License.
         <V.com.braintribe.testing>[2.0,2.1)</V.com.braintribe.testing>
         <V.com.braintribe.wire>[2.0,2.1)</V.com.braintribe.wire>
         <V.hiconic.platform.reflex>[1.0,1.1)</V.hiconic.platform.reflex>
+
+        <V.org.freemarker>2.3.28</V.org.freemarker>
 	</properties>
     <licenses>
         <license>

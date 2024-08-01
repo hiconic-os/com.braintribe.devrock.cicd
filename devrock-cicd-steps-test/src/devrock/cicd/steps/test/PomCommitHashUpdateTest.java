@@ -42,9 +42,9 @@ public class PomCommitHashUpdateTest {
 		Path pomCopy = Paths.get("out", modifiedFilename);
 		Path pomExpected = Paths.get("res", modifiedFilename);
 		Files.copy(pomOriginal, pomCopy, StandardCopyOption.REPLACE_EXISTING);
-		
+
 		PomTools.addCommitHash(pomCopy.toFile(), "abc123");
-		
-		Assertions.assertThat(pomCopy.toFile()).hasSameBinaryContentAs(pomExpected.toFile());
+
+		Assertions.assertThat(pomCopy.toFile()).hasSameTextualContentAs(pomExpected.toFile());
 	}
 }

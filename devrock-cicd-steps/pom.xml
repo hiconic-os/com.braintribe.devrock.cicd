@@ -1,4 +1,4 @@
-<!--
+<?xml version="1.0" encoding="UTF-8"?><!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -29,7 +29,13 @@ limitations under the License.
         </license>
     </licenses>
     <dependencies>
-        <!-- no dependencies -->
+        <!-- For shell completion script generator -->
+        <dependency>
+            <groupId>org.freemarker</groupId>
+            <artifactId>freemarker</artifactId>
+            <version>${V.org.freemarker}</version>
+        </dependency>
+
         <dependency>
             <groupId>com.braintribe.devrock.cicd</groupId>
             <artifactId>step-api</artifactId>
@@ -39,7 +45,6 @@ limitations under the License.
             <groupId>com.braintribe.devrock.cicd</groupId>
             <artifactId>devrock-cicd-api-model</artifactId>
             <version>${V.com.braintribe.devrock.cicd}</version>
-            <?tag asset ?>
         </dependency>
         <dependency>
             <groupId>com.braintribe.devrock</groupId>
@@ -58,18 +63,8 @@ limitations under the License.
         </dependency>
         <dependency>
             <groupId>com.braintribe.wire</groupId>
-            <artifactId>wire</artifactId>
+            <artifactId>wire-api</artifactId>
             <version>${V.com.braintribe.wire}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.braintribe.gm</groupId>
-            <artifactId>itw-gm-own-cl</artifactId>
-            <version>${V.com.braintribe.gm}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.braintribe.gm</groupId>
-            <artifactId>gm-core4-jvm</artifactId>
-            <version>${V.com.braintribe.gm}</version>
         </dependency>
         <dependency>
             <groupId>com.braintribe.devrock.cicd</groupId>
@@ -84,6 +79,16 @@ limitations under the License.
         <dependency>
             <groupId>hiconic.platform.reflex</groupId>
             <artifactId>reflex-module-api</artifactId>
+            <version>${V.hiconic.platform.reflex}</version>
+        </dependency>
+        <dependency>
+            <groupId>hiconic.platform.reflex</groupId>
+            <artifactId>cli-api-model</artifactId>
+            <version>${V.hiconic.platform.reflex}</version>
+        </dependency>
+        <dependency>
+            <groupId>hiconic.platform.reflex</groupId>
+            <artifactId>cli-base</artifactId>
             <version>${V.hiconic.platform.reflex}</version>
         </dependency>
     </dependencies>
