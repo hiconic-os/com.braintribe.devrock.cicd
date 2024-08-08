@@ -20,7 +20,9 @@ limitations under the License.
     <artifactId>hc-build-app</artifactId>
     <version>1.0.24</version>
     <packaging>zip</packaging>
-    <properties/>
+    <properties>
+        <launchScript>hc-build</launchScript>
+    </properties>
     <licenses>
         <license>
             <name>Apache License, Version 2.0</name>

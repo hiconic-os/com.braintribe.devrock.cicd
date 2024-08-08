@@ -9,14 +9,13 @@ import com.braintribe.model.generic.eval.EvalContext;
 import com.braintribe.model.generic.eval.Evaluator;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EntityTypes;
-import com.braintribe.model.service.api.PlatformRequest;
 import com.braintribe.model.service.api.ServiceRequest;
 import com.braintribe.model.service.api.result.Neutral;
 
 import hiconic.rx.platform.cli.model.api.ServiceDomainsDescription;
 
 @Description("Generates completion script for Shell that you need to \"source\" to use it.")
-public interface GenerateShellCompletionScript extends PlatformRequest {
+public interface GenerateShellCompletionScript extends ServiceRequest {
 
 	EntityType<GenerateShellCompletionScript> T = EntityTypes.T(GenerateShellCompletionScript.class);
 
