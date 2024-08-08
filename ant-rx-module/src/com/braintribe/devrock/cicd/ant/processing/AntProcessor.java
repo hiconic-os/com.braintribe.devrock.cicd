@@ -31,6 +31,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.io.UncheckedIOException;
 import java.nio.charset.Charset;
+import java.time.LocalTime;
 import java.util.Map;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -48,7 +49,6 @@ import com.braintribe.gm.model.reason.Reasons;
 import com.braintribe.gm.model.reason.essential.InvalidArgument;
 import com.braintribe.model.processing.service.api.OutputConfig;
 import com.braintribe.model.processing.service.api.OutputConfigAspect;
-import com.braintribe.model.processing.service.api.ServiceRequestContext;
 import com.braintribe.model.processing.service.impl.AbstractDispatchingServiceProcessor;
 import com.braintribe.model.processing.service.impl.DispatchConfiguration;
 import com.braintribe.model.service.api.result.Neutral;
@@ -80,7 +80,7 @@ public class AntProcessor extends AbstractDispatchingServiceProcessor<AntRequest
 
 	@Override
 	protected void configureDispatching(DispatchConfiguration<AntRequest, Object> dispatching) {
-		dispatching.registerReasoned(RunAnt.T, this::runAnt);
+		dispatching.registerReasoned(RunAnt.T, (c,r) -> runAnt(r));
 	}
 
 	interface Outputs extends Closeable {
@@ -185,8 +185,19 @@ public class AntProcessor extends AbstractDispatchingServiceProcessor<AntRequest
 		if (durationMs < 0)
 			return text("");
 
+		LocalTime currentTime = LocalTime.now();
+		String hour = doubleDigits(currentTime.getHour());
+		String minute = doubleDigits(currentTime.getMinute());
+		String second = doubleDigits(currentTime.getSecond());
+
 		String duration = StringTools.prettyPrintMilliseconds(durationMs, true);
-		return sequence(text("Building "), cyan(folderName), text(" took "), yellow(duration));
+
+		return sequence(text("Building "), cyan(folderName), text(" took "), yellow(duration), //
+				text("\nFinished at: "), yellow(hour), text(":"), yellow(minute), text(":"), yellow(second));
+	}
+
+	private String doubleDigits(int i) {
+		return (i < 10 ? "0" : "") + i;
 	}
 
 	/* This is here, because in some cases Ant doesn't log the error, but only throws a BuildException (e.g. when instantiating a POJO in build.xml
@@ -226,7 +237,7 @@ public class AntProcessor extends AbstractDispatchingServiceProcessor<AntRequest
 		return new BufferedOutputs(request, projectDir);
 	}
 
-	private Maybe<Neutral> runAnt(ServiceRequestContext context, RunAnt request) {
+	private Maybe<Neutral> runAnt(RunAnt request) {
 		String buildXmlFile = request.getBuildFile();
 		if (buildXmlFile == null)
 			buildXmlFile = "build.xml";
