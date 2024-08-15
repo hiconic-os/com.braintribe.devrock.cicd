@@ -1,10 +1,10 @@
 # Shell completion script for ${cliCommand}
 
-complete -F __${cliCommand}Completion ${cliCommand}
-complete -F __${cliCommand}Completion ${cliCommand}.sh
+complete -F __xyz__Completion ${cliCommand}
+complete -F __xyz__Completion ${cliCommand}.sh
 
 
-__${cliCommand}Completion() {
+__xyz__Completion() {
 <#noparse>	currentWord="${COMP_WORDS[COMP_CWORD]}";
 	nWords=${#COMP_WORDS[@]};
 
@@ -14,23 +14,23 @@ __${cliCommand}Completion() {
 		nWords=${#COMP_WORDS[@]};
 	fi
 
-	if __startsWithColon $currentWord; then return; fi
+	if __xyz__startsWithColon $currentWord; then return; fi
 
-	__resolveCommandNameAndPos;
+	__xyz__resolveCommandNameAndPos;
 
 	# if we have typed more words after specifying the command, we want to complete a parameter for the command
 	if [ "$commandOffset" -gt "0" ]; then
-		__suggestParameter;
+		__xyz__suggestParameter;
 	else
-	    __suggestCommand;
+	    __xyz__suggestCommand;
 	fi
 }
 
-__startsWithColon() {
+__xyz__startsWithColon() {
 	if [[ $1 == :* ]]; then true; else false; fi
 }
 
-__resolveCommandNameAndPos() {
+__xyz__resolveCommandNameAndPos() {
 	local i;
 	for (( i=$nWords-2 ; i>=0 ; i-- )) ; do
 		if [ "${COMP_WORDS[i]}" == ":" ]; then
@@ -44,32 +44,32 @@ __resolveCommandNameAndPos() {
 	commandOffset=$(( $nWords-2 ));
 }
 
-__suggestCommand() {
+__xyz__suggestCommand() {
 </#noparse>
-	__suggest "${commandsList}";
+	__xyz__suggest "${commandsList}";
 <#noparse>
 }
 
-__suggestParameter() {
+__xyz__suggestParameter() {
 	if [ "$commandName" == "help" ]; then
 		if [ "$commandOffset" == "1" ]; then
-			__suggestHelp;
+			__xyz__suggestHelp;
 		fi
 		return;
 	fi
 
-	__resolveParameterNameAndOffset;
-	__resolveParameterTypeIfRelevant;
-	__resolveNextStep;
+	__xyz__resolveParameterNameAndOffset;
+	__xyz__resolveParameterTypeIfRelevant;
+	__xyz__resolveNextStep;
 
 	if [ "$nextStep" == "value" ]; then
-		__suggestParameterValue;
+		__xyz__suggestParameterValue;
 	elif [ "$nextStep" == "parameter" ]; then
-		__suggestParameterName;
+		__xyz__suggestParameterName;
 	fi
 }
 
-__resolveParameterNameAndOffset() {
+__xyz__resolveParameterNameAndOffset() {
 	parameterName="";
 	parameterOffset="";
 
@@ -79,7 +79,7 @@ __resolveParameterNameAndOffset() {
 	for (( i=$nWords-2 ; i>=0 ; i-- )) ; do
 		if [ "${COMP_WORDS[i]}" == ":" ]; then return; fi
 
-		if __startsWithDash "${COMP_WORDS[i]}"; then
+		if __xyz__startsWithDash "${COMP_WORDS[i]}"; then
 			parameterName="${COMP_WORDS[i]}";
 			parameterOffset=$(( $nWords-i-1 ))
 			return;
@@ -87,7 +87,7 @@ __resolveParameterNameAndOffset() {
 	done
 }
 
-__resolveParameterTypeIfRelevant() {
+__xyz__resolveParameterTypeIfRelevant() {
 	keyType="";
 	valueType="";
 	collectionType="";
@@ -99,13 +99,13 @@ ${resolveParameterTypeIfRelevant_Case}
 <#noparse>
 }
 
-__resolveNextStep() {
+__xyz__resolveNextStep() {
 	nextStep="none";
 	currentWordType="";
 
 	# no parameter yet, we are writing the first one
 	if [ -z "$parameterName" ]; then
-		if __startsWithDash $currentWord; then
+		if __xyz__startsWithDash $currentWord; then
 			nextStep="parameter";
 		fi
 		return;
@@ -116,7 +116,7 @@ __resolveNextStep() {
 		# we are writing right after parameter name was specified
 		if [ "$parameterOffset" == "1" ]; then
 			# if it is a boolean and our words starts with dash, we allow another parameter right away as just he param name means we specify the value as true
-			if ( [ "$valueType" == "boolean" ] && __startsWithDash $currentWord ); then
+			if ( [ "$valueType" == "boolean" ] && __xyz__startsWithDash $currentWord ); then
 				nextStep="parameter";
 			# this must mean we are writing a value
 			else
@@ -134,7 +134,7 @@ __resolveNextStep() {
 	# if we have a set or a list
 	if [ "$collectionType" == "linear" ]; then
 		# if there is at least one element, we allow next parameter to be specified
-		if [ "$parameterOffset" -gt "1" ] && __startsWithDash $currentWord; then
+		if [ "$parameterOffset" -gt "1" ] && __xyz__startsWithDash $currentWord; then
 			nextStep="parameter";
 		# otherwise it must be a value
 		else
@@ -146,7 +146,7 @@ __resolveNextStep() {
 	# if we have a map
 	if [ "$collectionType" == "map" ]; then
 		# if there is an even number of elements and at least 2, we allow next parameter to be specified
-		if [ "$parameterOffset" -gt "2" ] && [ $(($parameterOffset%2)) -eq 1 ] && __startsWithDash $currentWord; then
+		if [ "$parameterOffset" -gt "2" ] && [ $(($parameterOffset%2)) -eq 1 ] && __xyz__startsWithDash $currentWord; then
 			nextStep="parameter";
 		else
 			# otherwise we say odd number of positions after a map parameter name comes key, even number is value
@@ -161,19 +161,19 @@ __resolveNextStep() {
 	fi
 }
 
-__startsWithDash() {
+__xyz__startsWithDash() {
 	if [[ $1 == -* ]]; then true; else false; fi
 }
 
-__suggestParameterName() {
+__xyz__suggestParameterName() {
 </#noparse>
 ${suggestParameterName_Case}
 <#noparse>
 
-	__removeUsedParamNames;
+	__xyz__removeUsedParamNames;
 }
 
-__removeUsedParamNames() {
+__xyz__removeUsedParamNames() {
 	if [ "$nWords" -lt "4" ]; then
 		return
 	fi;
@@ -182,43 +182,43 @@ __removeUsedParamNames() {
 	for (( i=$nWords-2 ; i>=0 ; i-- )) ; do
 		if [ "${COMP_WORDS[i]}" == ":" ]; then
 			return;
-		elif __startsWithDash "${COMP_WORDS[i]}"; then
-			__unsuggest "${COMP_WORDS[i]}";
+		elif __xyz__startsWithDash "${COMP_WORDS[i]}"; then
+			__xyz__unsuggest "${COMP_WORDS[i]}";
 		fi
 	done
 }
 
-__suggestHelp() {
+__xyz__suggestHelp() {
 </#noparse>
-	__suggest "${suggestHelp_CommandsList}";
+	__xyz__suggest "${suggestHelp_CommandsList}";
 <#noparse>
 }
 
-__suggestParameterValue() {
+__xyz__suggestParameterValue() {
 	case $currentWordType in
 		boolean)
-			__suggest "true false";;
+			__xyz__suggest "true false";;
 		file)
-			__suggestFile;;
+			__xyz__suggestFile;;
 		folder)
-			__suggestFolder;;
+			__xyz__suggestFolder;;
 </#noparse>
 ${suggestParameterValue_CustomCases}<#noparse>	esac
 }
 
-__suggest() {
+__xyz__suggest() {
 	COMPREPLY+=($(compgen -W "$1" -- "$currentWord"));
 }
 
-__suggestFile() {
-	__suggestFileOrFolder "-f";
+__xyz__suggestFile() {
+	__xyz__suggestFileOrFolder "-f";
 }
 
-__suggestFolder() {
-	__suggestFileOrFolder "-d";
+__xyz__suggestFolder() {
+	__xyz__suggestFileOrFolder "-d";
 }
 
-__suggestFileOrFolder() {
+__xyz__suggestFileOrFolder() {
 	case $SHELL in
 		*/zsh) # compopt is not supported in ZSH
 			;;
@@ -230,7 +230,7 @@ __suggestFileOrFolder() {
     IFS=$' \t\n'
 }
 
-__unsuggest() {
+__xyz__unsuggest() {
 	# the extremely tedious way of removing $1 from COMPREPLY array
 	local i new_array;
 	for i in "${!COMPREPLY[@]}"; do

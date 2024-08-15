@@ -8,6 +8,7 @@ import static hiconic.rx.cli.processing.help.HelpProcessor.USE_CASE_EXECUTION;
 import static hiconic.rx.cli.processing.help.HelpProcessor.USE_CASE_HELP;
 
 import java.io.File;
+import java.io.StringWriter;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
@@ -61,14 +62,21 @@ public class GenerateShellCompletionScriptProcessor implements ServiceProcessor<
 	public Neutral process(ServiceRequestContext requestContext, GenerateShellCompletionScript request) {
 		init(request);
 
-		File outputFile = new File(request.getOutputFile());
+		StringWriter sw = new StringWriter();
+		FreemarkerRenderer.loadingViaClassLoader(getClass()) //
+				.renderTemplate("shell-completion.sh.ftl", freemarkerParams(request), sw);
 
-		FileTools.write(outputFile).usingWriter(writer -> {
-			FreemarkerRenderer.loadingViaClassLoader(getClass()) //
-					.renderTemplate("shell-completion.sh.ftl", freemarkerParams(request), writer);
-		});
+		String functionNs = toNamespaceName(request.getCliCommand());
+		String completionScript = sw.toString().replace("__xyz__", "__" + functionNs + "__");
+
+		File outputFile = new File(request.getOutputFile());
+		FileTools.write(outputFile).string(completionScript);
 
 		return Neutral.NEUTRAL;
+	}
+
+	private String toNamespaceName(String cliCommand) {
+		return cliCommand.replace('-', '_');
 	}
 
 	private void init(GenerateShellCompletionScript request) {
@@ -129,10 +137,12 @@ public class GenerateShellCompletionScriptProcessor implements ServiceProcessor<
 	}
 
 	private Map<String, Object> freemarkerParams(GenerateShellCompletionScript request) {
+		String cliCommand = request.getCliCommand();
+
 		ShellCompletionGenerator generator = new ShellCompletionGenerator(request);
 
 		return asMap(//
-				"cliCommand", request.getCliCommand(), //
+				"cliCommand", cliCommand, //
 				"commandsList", generator.suggestedCommands(), //
 				"resolveParameterTypeIfRelevant_Case", generator.parameterTypeIfRelevant_Case(), //
 				"suggestParameterName_Case", generator.suggestParameterName_Case(), //
@@ -262,10 +272,10 @@ public class GenerateShellCompletionScriptProcessor implements ServiceProcessor<
 
 		/**
 		 * <pre>
-		 * __suggestParameterName() {
+		 * __xyz__suggestParameterName() {
 		 * case $commandName in
 		 * create-model)
-		 * __suggest "--artifactId --groupId --gwt";;
+		 * __xyz__suggest "--artifactId --groupId --gwt";;
 		 * ...
 		 * esac
 		 * }
@@ -339,8 +349,8 @@ public class GenerateShellCompletionScriptProcessor implements ServiceProcessor<
 
 		/**
 		 * <pre>
-		 * __suggestHelp() {
-		 * 	__suggest "create-model create-module create-library...";
+		 * __xyz__suggestHelp() {
+		 * 	__xyz__suggest "create-model create-module create-library...";
 		 * }
 		 * </pre>
 		 */
@@ -353,16 +363,16 @@ public class GenerateShellCompletionScriptProcessor implements ServiceProcessor<
 		 * Renders custom types, e.g. enums (MyColor) or virtual enums.
 		 * 
 		 * <pre>
-		 * __suggestParameterValue() {
+		 * __xyz__suggestParameterValue() {
 		 * 	case $currentWordType in
 		 * 		boolean)
-		 * 			__suggest "true false";;
+		 * 			__xyz__suggest "true false";;
 		 * 		file)
-		 * 			__suggestFile;;
+		 * 			__xyz__suggestFile;;
 		 *		folder)
-		 * 			__suggestFolder;;
+		 * 			__xyz__suggestFolder;;
 		 * 		MyColor)
-		 * 			__suggest "red green blue";;
+		 * 			__xyz__suggest "red green blue";;
 		 * esac
 		 * }
 		 * </pre>
@@ -384,7 +394,7 @@ public class GenerateShellCompletionScriptProcessor implements ServiceProcessor<
 		}
 
 		private void endCaseWithSuggestValues(List<String> values) {
-			stringifier.print("__suggest \"" + StringTools.join(" ", values) + "\"");
+			stringifier.print("__xyz__suggest \"" + StringTools.join(" ", values) + "\"");
 			endCase();
 		}
 
