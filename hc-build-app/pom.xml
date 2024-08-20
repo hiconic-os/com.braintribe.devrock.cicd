@@ -21,6 +21,7 @@ limitations under the License.
     <version>1.0.32</version>
     <packaging>zip</packaging>
     <properties>
+        <cli>true</cli>
         <launchScript>hc-build</launchScript>
     </properties>
     <licenses>
