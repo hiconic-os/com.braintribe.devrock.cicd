@@ -29,7 +29,11 @@ import devrock.step.api.StepExchangeContextAttribute;
 
 public class DistributedLocking {
 	public static Function<String, Lock> lockManager() {
-		StepExchangeContext context = AttributeContexts.peek().getAttribute(StepExchangeContextAttribute.class);
+		StepExchangeContext context = AttributeContexts.peek().findOrNull(StepExchangeContextAttribute.class);
+		
+		if (context == null)
+			return new DefaultLocking();
+		
 		return context.getService(DistributedLockingAttribute.class, () -> createLockingManager(context));
 	}
 	

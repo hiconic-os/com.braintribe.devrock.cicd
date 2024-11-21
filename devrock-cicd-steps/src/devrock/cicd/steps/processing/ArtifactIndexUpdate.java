@@ -40,6 +40,7 @@ import com.braintribe.devrock.mc.api.resolver.ArtifactDataResolution;
 import com.braintribe.devrock.mc.api.resolver.ArtifactDataResolver;
 import com.braintribe.devrock.mc.core.repository.index.ArtifactIndex;
 import com.braintribe.devrock.mc.core.resolver.BasicDependencyResolver;
+import com.braintribe.devrock.model.mc.reason.PartAlreadyExists;
 import com.braintribe.devrock.model.mc.reason.UnresolvedDependencyVersion;
 import com.braintribe.devrock.model.repository.MavenHttpRepository;
 import com.braintribe.devrock.model.repository.Repository;
@@ -102,74 +103,93 @@ public class ArtifactIndexUpdate {
 		}
 		
 		try {
-			ConsoleOutputs.println("Updating artifact index for repo " + repository.getName());
-			
-			CompiledDependencyIdentification indexCdi = CompiledDependencyIdentification.create("meta", "artifact-index", "[1,)");
-			
-			
-			BasicDependencyResolver dependencyResolver = new BasicDependencyResolver(resolver);
-			Maybe<CompiledArtifactIdentification> caiMaybe = dependencyResolver.resolveDependency(indexCdi);
-
-			final CompiledArtifactIdentification indexCai; 
-			final ArtifactIndex artifactIndex;
-			
-			if (caiMaybe.isUnsatisfied()) {
-				if (caiMaybe.isUnsatisfiedBy(UnresolvedDependencyVersion.T)) {
-					indexCai = CompiledArtifactIdentification.create("meta", "artifact-index", "1");
-					artifactIndex = new ArtifactIndex(true);
-				}
-				else {
-					return Reasons.build(ArtifactIndexUpdateFailed.T).text("Error while retrieving existing artifact index") //
-							.cause(caiMaybe.whyUnsatisfied()).toReason();
-				}
-			}
-			else {
-				indexCai = caiMaybe.get();
-
-				Maybe<ArtifactIndex> indexMaybe = downloadIndex(indexCai, resolver);
-				
-				if (indexMaybe.isUnsatisfied()) {
-					if (indexMaybe.isUnsatisfiedBy(NotFound.T)) {
-						artifactIndex = new ArtifactIndex(true);
-					}
-					else {
-						return Reasons.build(ArtifactIndexUpdateFailed.T).text("Error while retrieving existing artifact index") //
-								.cause(indexMaybe.whyUnsatisfied()).toReason();
-					}
-				}
-				else {
-					Version version = indexCai.getVersion();
-					version.setMajor(version.getMajor() + 1);
-					
-					artifactIndex = indexMaybe.get();
-				}
-			}
-			
-			for (VersionedArtifactIdentification artifact: publishedArtifacts) {
-				String artifactAsString = artifact.asString();
-				
-				if (updateOnlyIfUnknown && artifactIndex.get(artifactAsString) != null)
-					continue;
-				
-				artifactIndex.update(artifactAsString);
-			}
-			
-			if (cleanup != null)
-				deleteObsoletesFromIndex(artifactIndex, cleanup, publishedArtifacts);
-			
-			Reason error = uploadIndex(indexCai, artifactDeployer, artifactIndex);
-			
-			if (error != null) {
-				return Reasons.build(ArtifactIndexUpdateFailed.T).text("Error while updating artifact index") //
-						.cause(error).toReason();
-			}
-			
-			return null;
+			return updateArtifactIndexConcurrencyAware(repository, artifactDeployer, resolver, publishedArtifacts, cleanup, updateOnlyIfUnknown);
 		}
 		finally {
 			lock.unlock();
 			ConsoleOutputs.println("Unlocked for artifact index update for repo " + repository.getName());
 		}
+	}
+
+	private static Reason updateArtifactIndexConcurrencyAware(Repository repository, ArtifactDeployer artifactDeployer, ArtifactDataResolver resolver,
+			List<? extends VersionedArtifactIdentification> publishedArtifacts, String cleanup, boolean updateOnlyIfUnknown) {
+		
+		while (true) {
+			Reason error = tryUpdateArtifactIndex(repository, artifactDeployer, resolver, publishedArtifacts, cleanup, updateOnlyIfUnknown);
+			
+			if (error == null)
+				return null;
+			
+			if (!checkAlreadyExisting(error))
+				return error;
+		}
+	}
+
+	private static Reason tryUpdateArtifactIndex(Repository repository, ArtifactDeployer artifactDeployer, ArtifactDataResolver resolver,
+			List<? extends VersionedArtifactIdentification> publishedArtifacts, String cleanup, boolean updateOnlyIfUnknown) {
+		ConsoleOutputs.println("Updating artifact index for repo " + repository.getName());
+		
+		CompiledDependencyIdentification indexCdi = CompiledDependencyIdentification.create("meta", "artifact-index", "[1,)");
+		
+		
+		BasicDependencyResolver dependencyResolver = new BasicDependencyResolver(resolver);
+		Maybe<CompiledArtifactIdentification> caiMaybe = dependencyResolver.resolveDependency(indexCdi);
+
+		final CompiledArtifactIdentification indexCai; 
+		final ArtifactIndex artifactIndex;
+		
+		if (caiMaybe.isUnsatisfied()) {
+			if (caiMaybe.isUnsatisfiedBy(UnresolvedDependencyVersion.T)) {
+				indexCai = CompiledArtifactIdentification.create("meta", "artifact-index", "1");
+				artifactIndex = new ArtifactIndex(true);
+			}
+			else {
+				return Reasons.build(ArtifactIndexUpdateFailed.T).text("Error while retrieving existing artifact index") //
+						.cause(caiMaybe.whyUnsatisfied()).toReason();
+			}
+		}
+		else {
+			indexCai = caiMaybe.get();
+
+			Maybe<ArtifactIndex> indexMaybe = downloadIndex(indexCai, resolver);
+			
+			if (indexMaybe.isUnsatisfied()) {
+				if (indexMaybe.isUnsatisfiedBy(NotFound.T)) {
+					artifactIndex = new ArtifactIndex(true);
+				}
+				else {
+					return Reasons.build(ArtifactIndexUpdateFailed.T).text("Error while retrieving existing artifact index") //
+							.cause(indexMaybe.whyUnsatisfied()).toReason();
+				}
+			}
+			else {
+				Version version = indexCai.getVersion();
+				version.setMajor(version.getMajor() + 1);
+				
+				artifactIndex = indexMaybe.get();
+			}
+		}
+		
+		for (VersionedArtifactIdentification artifact: publishedArtifacts) {
+			String artifactAsString = artifact.asString();
+			
+			if (updateOnlyIfUnknown && artifactIndex.get(artifactAsString) != null)
+				continue;
+			
+			artifactIndex.update(artifactAsString);
+		}
+		
+		if (cleanup != null)
+			deleteObsoletesFromIndex(artifactIndex, cleanup, publishedArtifacts);
+		
+		Reason error = uploadIndex(indexCai, artifactDeployer, artifactIndex);
+		
+		if (error != null) {
+			return Reasons.build(ArtifactIndexUpdateFailed.T).text("Error while updating artifact index") //
+					.cause(error).toReason();
+		}
+		
+		return null;
 	}
 	
 	private static void deleteObsoletesFromIndex(ArtifactIndex artifactIndex, String cleanup, List<? extends VersionedArtifactIdentification> publishedArtifacts) {
@@ -203,7 +223,7 @@ public class ArtifactIndexUpdate {
 		}
 	}
 
-	private static Reason uploadIndex(CompiledArtifactIdentification indexCai, ArtifactDeployer deployer, ArtifactIndex index) {
+	public static Reason uploadIndex(CompiledArtifactIdentification indexCai, ArtifactDeployer deployer, ArtifactIndex index) {
 		StreamPipe pipe = StreamPipes.fileBackedFactory().newPipe("artifact-index");
 		
 		try (GZIPOutputStream out = new GZIPOutputStream(pipe.openOutputStream())) {
@@ -237,7 +257,7 @@ public class ArtifactIndexUpdate {
 		return null;
 	}
 	
-	private static Maybe<ArtifactIndex> downloadIndex(CompiledArtifactIdentification indexCai, ArtifactDataResolver resolver) {
+	public static Maybe<ArtifactIndex> downloadIndex(CompiledArtifactIdentification indexCai, ArtifactDataResolver resolver) {
 		Maybe<ArtifactDataResolution> indexPartMaybe = resolver.resolvePart(indexCai, PartIdentification.create("gz"));
 		
 		if (indexPartMaybe.isUnsatisfied()) {
@@ -256,6 +276,18 @@ public class ArtifactIndexUpdate {
 		}
 		catch (IOException e) {
 			return Reasons.build(IoError.T).text("Error while reading " + indexCai.asString()).cause(InternalError.from(e)).toMaybe();
+		}
+	}
+	
+	public static boolean checkAlreadyExisting(Reason reason) {
+		while (true) {
+			List<Reason> reasons = reason.getReasons();
+			
+			if (reasons.isEmpty()) {
+				return reason instanceof PartAlreadyExists;
+			}
+			
+			reason = reasons.get(0);
 		}
 	}
 }
