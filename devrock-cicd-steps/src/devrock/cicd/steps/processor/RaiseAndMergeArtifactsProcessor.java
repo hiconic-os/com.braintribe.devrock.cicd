@@ -37,6 +37,7 @@ import devrock.cicd.model.api.data.CodebaseAnalysis;
 import devrock.cicd.model.api.data.CodebaseDependencyAnalysis;
 import devrock.cicd.model.api.data.GitContext;
 import devrock.cicd.model.api.data.LocalArtifact;
+import devrock.cicd.steps.processing.Versions;
 import devrock.git.GitTools;
 import devrock.pom.PomTools;
 
@@ -99,14 +100,18 @@ public class RaiseAndMergeArtifactsProcessor extends SpawningServiceProcessor<Ra
 				VersionedArtifactIdentification ai = artifact.getArtifactIdentification();
 				Version version = Version.parse(ai.getVersion());
 				
+				Maybe<Version> raisedVersionMaybe = Versions.raise(version);
+				
+				if (raisedVersionMaybe.isUnsatisfied())
+					return Reasons.build(UnsupportedOperation.T) //
+							.text("Cannot raise revision on version [" + version.asString() + "] in artifact " + ai.getArtifactId()) //
+							.cause(raisedVersionMaybe.whyUnsatisfied()) //
+							.toReason();
+				
+				version = raisedVersionMaybe.get();
+				
 				ConsoleOutput versionAsBefore = McOutputs.version(version);
 				
-				Integer revision = version.getRevision();
-				
-				if (revision == null)
-					return Reasons.build(UnsupportedOperation.T).text("Cannot raise revision on a revision-free version [" + version.asString() + "] in artifact " + ai.getArtifactId()).toReason();
-				
-				version.setRevision(revision + 1);
 				String adaptedVersion = version.asString();
 
 				// adapt local artifact
