@@ -83,7 +83,6 @@ public class ArtifactIndexUpdate {
 	 * 		<li>a * to to make a full cleanup
 	 * 		<li>null to skip cleanup
 	 * 	</ul>either a specific groupId toor *
-	 * @return
 	 */
 	public static Reason updateArtifactIndex(Repository repository, ArtifactDeployer artifactDeployer, ArtifactDataResolver resolver, List<? extends VersionedArtifactIdentification> publishedArtifacts, String cleanup, boolean updateOnlyIfUnknown) {
 		if (!(repository instanceof MavenHttpRepository))

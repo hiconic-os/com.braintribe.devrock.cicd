@@ -61,7 +61,6 @@ import com.braintribe.model.version.Version;
 import com.braintribe.utils.StringTools;
 import com.braintribe.wire.api.Wire;
 import com.braintribe.wire.api.context.WireContext;
-import com.braintribe.wire.api.context.WireContextBuilder;
 import com.braintribe.wire.api.module.WireModule;
 import com.braintribe.wire.api.module.WireTerminalModule;
 
@@ -74,10 +73,10 @@ public class SolutionHashResolver implements AutoCloseable {
 	
 	private BasicDependencyResolver uploadDependencyResolver;
 	private ArtifactDataResolver uploadRepositoryResolver;
-	private WireContext<ClasspathResolverContract> context;
-	private ClasspathDependencyResolver classpathResolver;
-	private DeclaredArtifactCompiler declaredArtifactCompiler;
-	private File groupPath;
+	private final WireContext<ClasspathResolverContract> context;
+	private final ClasspathDependencyResolver classpathResolver;
+	private final DeclaredArtifactCompiler declaredArtifactCompiler;
+	private final File groupPath;
 	private DeclaredArtifactResolver declaredArtifactResolver;
 	
 	public SolutionHashResolver(Collection<LocalArtifact> changedArtifacts, File groupPath) {
@@ -257,8 +256,8 @@ public class SolutionHashResolver implements AutoCloseable {
 
 	private static class SolutionHashResolverWireModule implements WireTerminalModule<ClasspathResolverContract> {
 
-		private File groupPath;
-		private WorkspaceRepositoryModule workspaceRepositoryModule;
+		private final File groupPath;
+		private final WorkspaceRepositoryModule workspaceRepositoryModule;
 
 		public SolutionHashResolverWireModule(File groupPath, WorkspaceRepository workspaceRepository) {
 			super();
@@ -273,9 +272,5 @@ public class SolutionHashResolver implements AutoCloseable {
 
 		}
 
-		@Override
-		public void configureContext(WireContextBuilder<?> contextBuilder) {
-			
-		}
 	}
 }

@@ -20,7 +20,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.InterruptedIOException;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
 import java.util.Arrays;
@@ -94,10 +93,6 @@ public class ProcessExecution {
 		}
 	}
 	
-	public static Maybe<String> runScript(File cwd, boolean systemIo, String... scriptArgs) {
-		return null;
-	}
-	
 	public static Maybe<String> runCommand(File cwd, String ... cmd) {
 		return runCommand(cwd, false, cmd);
 	}
@@ -107,7 +102,7 @@ public class ProcessExecution {
 		ProcessResults results;
 		
 		try {
-			results = runCommand(commands, cwd, null, (t,m) -> {}, systemIo);
+			results = runCommand(commands, cwd, null, (t,m) -> {/*NO OP*/}, systemIo);
 		} catch (UnsupportedOperationException e) {
 			String command = commands.stream().collect(Collectors.joining(" "));
 			return Reasons.build(UnsupportedOperation.T).text("Command [" + command + "] is not supported: " + e.getMessage()).toMaybe();

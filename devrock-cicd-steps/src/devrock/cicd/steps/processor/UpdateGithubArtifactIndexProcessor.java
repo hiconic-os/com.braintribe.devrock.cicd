@@ -38,7 +38,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import com.braintribe.codec.marshaller.api.GmSerializationOptions;
 import com.braintribe.codec.marshaller.json.JsonStreamMarshaller;
 import com.braintribe.console.ConsoleOutputs;
 import com.braintribe.devrock.mc.api.commons.VersionInfo;
@@ -54,8 +53,6 @@ import com.braintribe.gm.model.reason.Reasons;
 import com.braintribe.gm.model.reason.UnsatisfiedMaybeTunneling;
 import com.braintribe.model.artifact.essential.ArtifactIdentification;
 import com.braintribe.model.artifact.essential.VersionedArtifactIdentification;
-import com.braintribe.model.generic.GMF;
-import com.braintribe.model.generic.reflection.EssentialTypes;
 import com.braintribe.model.version.Version;
 import com.braintribe.utils.Base64;
 import com.braintribe.wire.api.Wire;
@@ -267,8 +264,6 @@ public class UpdateGithubArtifactIndexProcessor extends SpawningServiceProcessor
 		}
 		
 		List<Map<String, Object>> decodeJson(String json) {
-			GmSerializationOptions options = GmSerializationOptions.deriveDefaults().setInferredRootType(GMF.getTypeReflection().getListType(EssentialTypes.TYPE_OBJECT)).build();
-			
 			List<Map<String, Object>> data = (List<Map<String, Object>>) marshaller.decode(json);
 			
 			return data;
