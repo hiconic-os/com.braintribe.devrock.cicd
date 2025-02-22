@@ -17,6 +17,7 @@ import static com.braintribe.console.ConsoleOutputs.brightBlue;
 import static com.braintribe.console.ConsoleOutputs.println;
 import static com.braintribe.console.ConsoleOutputs.text;
 import static com.braintribe.devrock.mc.core.commons.McOutputs.versionedArtifactIdentification;
+import static com.braintribe.utils.lcd.StringTools.isEmpty;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -510,8 +511,11 @@ public class AnalyzeCodebaseProcessor extends SpawningServiceProcessor<AnalyzeCo
 		private boolean isNpmPackage(CompiledArtifact ca) {
 			Map<String, String> props = ca.getProperties();
 
+			if (isEmpty(props.get("npmRegistryUrl")))
+				return false;
+
 			return "model".equals(props.get("archetype")) || //
-					props.containsKey("npmPackaging");
+					!isEmpty(props.get("npmPackaging"));
 		}
 
 		private Maybe<LocalArtifact> readLocalArtifact(File pomFile) {
