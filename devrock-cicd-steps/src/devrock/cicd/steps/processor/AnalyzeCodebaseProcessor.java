@@ -52,6 +52,7 @@ import com.braintribe.gm.model.reason.Reason;
 import com.braintribe.gm.model.reason.Reasons;
 import com.braintribe.gm.model.reason.essential.ConfigurationError;
 import com.braintribe.gm.model.reason.essential.InvalidArgument;
+import com.braintribe.gm.model.reason.essential.NotFound;
 import com.braintribe.gm.model.reason.essential.ParseError;
 import com.braintribe.model.artifact.analysis.AnalysisArtifact;
 import com.braintribe.model.artifact.analysis.AnalysisArtifactResolution;
@@ -483,7 +484,10 @@ public class AnalyzeCodebaseProcessor extends SpawningServiceProcessor<AnalyzeCo
 				
 				localArtifactsByFolderName.put(localArtifact.getFolderName(), localArtifact);
 			}
-			
+
+			if (localArtifactsByFolderName.isEmpty())
+				return NotFound.create("No artifacts found in: " + path.getAbsolutePath());
+
 			return null;
 		}
 		
