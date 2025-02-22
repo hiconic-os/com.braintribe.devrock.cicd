@@ -17,6 +17,7 @@ import static com.braintribe.console.ConsoleOutputs.brightBlue;
 import static com.braintribe.console.ConsoleOutputs.println;
 import static com.braintribe.console.ConsoleOutputs.text;
 import static com.braintribe.devrock.mc.core.commons.McOutputs.versionedArtifactIdentification;
+import static com.braintribe.utils.lcd.CollectionTools2.newMap;
 import static com.braintribe.utils.lcd.StringTools.isEmpty;
 
 import java.io.File;
@@ -453,6 +454,8 @@ public class AnalyzeCodebaseProcessor extends SpawningServiceProcessor<AnalyzeCo
 		
 		private Reason findLocalArtifacts(File path) {
 			Set<String> ignores = getIgnores(path);
+
+			CompiledArtifact parentCa = readParentCompiledArtifact(path);
 			
 			for (File folder: path.listFiles()) {
 				if (!folder.isDirectory())
@@ -465,7 +468,13 @@ public class AnalyzeCodebaseProcessor extends SpawningServiceProcessor<AnalyzeCo
 				if (!pomFile.exists())
 					continue;
 				
-				Maybe<LocalArtifact> localArtifactMaybe = readLocalArtifact(pomFile);
+				Maybe<CompiledArtifact> compiledArtifactMaybe = readCompiledArtifact(pomFile);
+				if (compiledArtifactMaybe.isUnsatisfied())
+					return compiledArtifactMaybe.whyUnsatisfied();
+
+				CompiledArtifact compiledArtifact = compiledArtifactMaybe.get();
+
+				Maybe<LocalArtifact> localArtifactMaybe = readLocalArtifact(folder, compiledArtifact, parentCa);
 				
 				if (localArtifactMaybe.isUnsatisfied())
 					return localArtifactMaybe.whyUnsatisfied();
@@ -478,7 +487,19 @@ public class AnalyzeCodebaseProcessor extends SpawningServiceProcessor<AnalyzeCo
 			return null;
 		}
 		
-		private void classifyArtifact(LocalArtifact localArtifact, CompiledArtifact ca) {
+		private CompiledArtifact readParentCompiledArtifact(File path) {
+			File pomFile = new File(path, "parent/pom.xml");
+			if (!pomFile.exists())
+				return null;
+
+			Maybe<CompiledArtifact> compiledArtifactMaybe = readCompiledArtifact(pomFile);
+			if (compiledArtifactMaybe.isUnsatisfied())
+				return null;
+
+			return compiledArtifactMaybe.get();
+		}
+
+		private void classifyArtifact(LocalArtifact localArtifact, CompiledArtifact ca, CompiledArtifact parentCa) {
 			String packaging = Optional.ofNullable(localArtifact.getPackaging()).map(String::toLowerCase).orElse("jar");
 			
 			switch (packaging) {
@@ -504,12 +525,17 @@ public class AnalyzeCodebaseProcessor extends SpawningServiceProcessor<AnalyzeCo
 				localArtifact.setReleaseView(true);
 			}
 
-			if (isNpmPackage(ca))
+			if (isNpmPackage(ca, parentCa))
 				localArtifact.setNpmPackage(true);
 		}
 
-		private boolean isNpmPackage(CompiledArtifact ca) {
-			Map<String, String> props = ca.getProperties();
+		private boolean isNpmPackage(CompiledArtifact ca, CompiledArtifact parentCa) {
+			Map<String, String> props = newMap();
+
+			if (parentCa != null)
+				props.putAll(parentCa.getProperties());
+
+			props.putAll(ca.getProperties());
 
 			if (isEmpty(props.get("npmRegistryUrl")))
 				return false;
@@ -518,7 +544,15 @@ public class AnalyzeCodebaseProcessor extends SpawningServiceProcessor<AnalyzeCo
 					!isEmpty(props.get("npmPackaging"));
 		}
 
-		private Maybe<LocalArtifact> readLocalArtifact(File pomFile) {
+		private Maybe<LocalArtifact> readLocalArtifact(File folder, CompiledArtifact ca, CompiledArtifact parentCa) {
+			LocalArtifact localArtifact = buildLocalArtifact(folder, ca);
+
+			classifyArtifact(localArtifact, ca, parentCa);
+
+			return Maybe.complete(localArtifact);
+		}
+
+		private Maybe<CompiledArtifact> readCompiledArtifact(File pomFile) {
 			File folder = pomFile.getParentFile();
 
 			Maybe<CompiledArtifact> caiMaybe = DeclaredArtifactIdentificationExtractor.extractMinimalArtifact(pomFile);
@@ -527,20 +561,16 @@ public class AnalyzeCodebaseProcessor extends SpawningServiceProcessor<AnalyzeCo
 						.text("Could identify artifact from folder: " + folder.getAbsolutePath()) //
 						.cause(caiMaybe.whyUnsatisfied()) //
 						.toMaybe();
-			
+
 			CompiledArtifact ca = caiMaybe.get();
-			if (!folder.getName().equals( ca.getArtifactId()))
+			if (!folder.getName().equals(ca.getArtifactId()))
 				return Reasons.build(ConfigurationError.T) //
 						.text("Artifact id " + ca.getArtifactId() + " doesn't match folder: " + folder.getName()) //
 						.toMaybe();
-
-			LocalArtifact localArtifact = buildLocalArtifact(folder, ca);
-			
-			classifyArtifact(localArtifact, ca);
-
-			return Maybe.complete(localArtifact);
-		}
 		
+			return caiMaybe;
+		}
+
 		private LocalArtifact buildLocalArtifact(File folder, CompiledArtifact ca) {
 			VersionedArtifactIdentification vai = VersionedArtifactIdentification.create(ca.getGroupId(), ca.getArtifactId(), ca.getVersion().asString());
 			LocalArtifact localArtifact = LocalArtifact.T.create();
