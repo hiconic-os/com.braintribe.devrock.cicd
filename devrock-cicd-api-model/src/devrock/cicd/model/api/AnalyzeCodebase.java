@@ -13,8 +13,12 @@
 // ============================================================================
 package devrock.cicd.model.api;
 
+import java.util.Set;
+
 import com.braintribe.model.generic.annotation.Initializer;
 import com.braintribe.model.generic.annotation.meta.Alias;
+import com.braintribe.model.generic.annotation.meta.Description;
+import com.braintribe.model.generic.annotation.meta.FolderName;
 import com.braintribe.model.generic.annotation.meta.Mandatory;
 import com.braintribe.model.generic.eval.EvalContext;
 import com.braintribe.model.generic.eval.Evaluator;
@@ -23,6 +27,7 @@ import com.braintribe.model.generic.reflection.EntityTypes;
 import com.braintribe.model.service.api.ServiceRequest;
 
 import devrock.step.model.api.StepRequest;
+import devrock.step.model.api.meta.ExternalArgument;
 
 @Alias("analyze")
 public interface AnalyzeCodebase extends StepRequest, EnvironmentAware {
@@ -36,6 +41,7 @@ public interface AnalyzeCodebase extends StepRequest, EnvironmentAware {
 	String baseRemote = "baseRemote";
 	String detectUnpublishedArtifacts = "detectUnpublishedArtifacts";
 	String allowReleaseViewBuilding = "allowReleaseViewBuilding";
+	String artifacts = "artifacts";
 
 	String getBaseBranch();
 	void setBaseBranch(String baseBranch);
@@ -51,12 +57,22 @@ public interface AnalyzeCodebase extends StepRequest, EnvironmentAware {
 	String getPath();
 	void setPath(String path);
 
-	/**
-	 * Artifacts range expression. Like {@code [my-artifact]}, {@code [my-artifact1]+[my-artifact2]} or {@code .}, which
-	 * represents all artifacts in given group.
-	 */
+	/** Note that in the 'hc-build app' there is an {@link ExternalArgument} mapping that maps {@link Build#getRange()} to this. */
+	@Description("Describes which artifacts to build. Examples: \n" + //
+			"xyz - artifact xyz and all its dependencies\n" + //
+			"[xyz] - only artifact xyz\n" + //
+			"[xyz]+[abc] - only artifacts xyz and abc\n" + //
+			". - all artifacts\n")
+	@Alias("r")
 	String getBuildArtifacts();
 	void setBuildArtifacts(String buildArtifacts);
+
+	@Description("Alternative to 'range' to specify exact artifacts to build, better suited for CLI completions.\n" + //
+			"Passing '--artifacts xyz/ abc/' is equivalent to '--range [xyz]+[abc]'.")
+	@Alias("a")
+	@FolderName
+	Set<String> getArtifacts();
+	void setArtifacts(Set<String> artifacts);
 
 	boolean getDetectUnpublishedArtifacts();
 	void setDetectUnpublishedArtifacts(boolean detectUnpublishedArtifacts);
