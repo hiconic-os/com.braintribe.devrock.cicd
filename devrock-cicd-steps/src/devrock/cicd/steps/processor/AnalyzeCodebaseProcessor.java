@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -86,6 +87,7 @@ import devrock.cicd.steps.processing.SolutionHashResolver;
 import devrock.git.GitTools;
 
 public class AnalyzeCodebaseProcessor extends SpawningServiceProcessor<AnalyzeCodebase, AnalyzeCodebaseResponse> {
+	private static EnumSet<BuildReason> BUILD_REASONS_RELEASE_VIEW = EnumSet.of(BuildReason.ARTIFACT_CHANGED, BuildReason.ARTIFACT_UNTRACKED, BuildReason.UNPUBLISHED, BuildReason.PARENT_CHANGED);
 
 	@Override
 	protected StatefulServiceProcessor spawn() {
@@ -367,7 +369,9 @@ public class AnalyzeCodebaseProcessor extends SpawningServiceProcessor<AnalyzeCo
 					else if (localArtifact.getIntegrationTest()) {
 						localArtifact.setBuildReason(BuildReason.NONE);
 					}
-					else if (localArtifact.getReleaseView() && !request.getAllowReleaseViewBuilding()) {
+					else if (localArtifact.getReleaseView() //
+							&& !request.getAllowReleaseViewBuilding() //
+							&& !BUILD_REASONS_RELEASE_VIEW.contains(localArtifact.getBuildReason())) {
 						localArtifact.setBuildReason(BuildReason.NONE);
 					}
 					else {
