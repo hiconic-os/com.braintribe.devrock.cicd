@@ -33,6 +33,7 @@ import devrock.cicd.model.api.PublishArtifacts;
 import devrock.cicd.model.api.PublishNpmPackages;
 import devrock.cicd.model.api.RaiseAndMergeArtifacts;
 import devrock.cicd.model.api.ReadFromExchangeContext;
+import devrock.cicd.model.api.RunIntegrationTests;
 import devrock.cicd.model.api.RunTests;
 import devrock.cicd.model.api.UpdateGithubArtifactIndex;
 import devrock.cicd.model.api.data.CodebaseDependencyAnalysis;
@@ -48,6 +49,7 @@ import devrock.cicd.steps.processor.PublishArtifactsProcessor;
 import devrock.cicd.steps.processor.PublishNpmPackagesProcessor;
 import devrock.cicd.steps.processor.RaiseAndMergeArtifactsProcessor;
 import devrock.cicd.steps.processor.ReadFromExchangeContextProcessor;
+import devrock.cicd.steps.processor.RunIntegrationTestsProcessor;
 import devrock.cicd.steps.processor.RunTestsProcessor;
 import devrock.cicd.steps.processor.UpdateGithubArtifactIndexProcessor;
 import devrock.cicd.steps.processor.completion.GenerateShellCompletionScriptProcessor;
@@ -76,6 +78,7 @@ public class DevrockCicdStepsRxModuleSpace implements RxModuleContract {
 		configuration.bindRequest(BuildArtifacts.T, this::buildArtifactsProcessor);
 		configuration.bindRequest(CheckLinking.T, this::checkBuildLinkingProcessor);
 		configuration.bindRequest(RunTests.T, this::runTestsProcessor);
+		configuration.bindRequest(RunIntegrationTests.T, this::runIntegrationTestsProcessor);
 		configuration.bindRequest(RaiseAndMergeArtifacts.T, this::raiseAndMergeArtifactsProcessor);
 		configuration.bindRequest(PublishArtifacts.T, this::publishArtifactsProcessor);
 		configuration.bindRequest(PublishNpmPackages.T, this::publishNpmPackagesProcessor);
@@ -89,11 +92,11 @@ public class DevrockCicdStepsRxModuleSpace implements RxModuleContract {
 	private void configureApiModel(ModelMetaDataEditor editor) {
 		Intricate intricate = Intricate.T.create();
 		ArgumentPropagation defaultArgumentPropagation = ArgumentPropagation.T.create();
-		
+
 		editor.onEntityType(CodebaseDependencyAnalysis.T).addMetaData(intricate);
 		editor.onEntityType(AnalysisArtifactResolution.T).addMetaData(intricate);
-		
-		ExchangeClassifier exchangeClassifier = ExchangeClassifier.T .create();
+
+		ExchangeClassifier exchangeClassifier = ExchangeClassifier.T.create();
 		exchangeClassifier.setValue("codebase");
 
 		editor.onEntityType(AnalyzeCodebaseResponse.T).addPropertyMetaData(AnalyzeCodebaseResponse.dependencyResolution, exchangeClassifier);
@@ -112,7 +115,7 @@ public class DevrockCicdStepsRxModuleSpace implements RxModuleContract {
 		ExternalArgument rangeExternalArgument = ExternalArgument.T.create();
 		rangeExternalArgument.setName("range");
 		editor.onEntityType(AnalyzeCodebase.T).addPropertyMetaData(AnalyzeCodebase.buildArtifacts, rangeExternalArgument);
-		
+
 		ProjectDir projectDir = ProjectDir.T.create();
 		editor.onEntityType(AnalyzeCodebase.T).addPropertyMetaData(AnalyzeCodebase.path, projectDir);
 		editor.onEntityType(EnrichExchangeContext.T).addPropertyMetaData(EnrichExchangeContext.gitPath, projectDir);
@@ -121,28 +124,27 @@ public class DevrockCicdStepsRxModuleSpace implements RxModuleContract {
 		editor.onEntityType(AnalyzeCodebase.T).addPropertyMetaData(AnalyzeCodebase.baseRemote, defaultExternalArgument);
 		editor.onEntityType(AnalyzeCodebase.T).addPropertyMetaData(AnalyzeCodebase.detectUnpublishedArtifacts, defaultExternalArgument);
 		editor.onEntityType(EnvironmentAware.T).addPropertyMetaData(EnvironmentAware.ci, defaultExternalArgument);
-		
+
 		ExchangeConfiguration exchangeConfiguration = ExchangeConfiguration.T.create();
-		
+
 		editor.onEntityType(DistributedLocking.T).addMetaData(exchangeConfiguration);
 	}
 
-	
 	@Managed
 	private Test1Processor test1Processor() {
 		return new Test1Processor();
 	}
-	
+
 	@Managed
 	private Test2Processor test2Processor() {
 		return new Test2Processor();
 	}
-	
+
 	@Managed
 	private InitializeExchangeProcessor initializeExchangeProcessor() {
 		return new InitializeExchangeProcessor();
 	}
-	
+
 	@Managed
 	private EnrichExchangeContextProcessor enrichExchangeContextProcessor() {
 		return new EnrichExchangeContextProcessor();
@@ -157,42 +159,47 @@ public class DevrockCicdStepsRxModuleSpace implements RxModuleContract {
 	private AnalyzeCodebaseProcessor analyzeCodebaseProcessor() {
 		return new AnalyzeCodebaseProcessor();
 	}
-	
+
 	@Managed
 	private BuildArtifactsProcessor buildArtifactsProcessor() {
 		return new BuildArtifactsProcessor();
 	}
-	
+
 	@Managed
 	private CheckLinkingProcessor checkBuildLinkingProcessor() {
 		return new CheckLinkingProcessor();
 	}
-	
+
 	@Managed
 	private RunTestsProcessor runTestsProcessor() {
 		return new RunTestsProcessor();
 	}
-	
+
+	@Managed
+	private RunIntegrationTestsProcessor runIntegrationTestsProcessor() {
+		return new RunIntegrationTestsProcessor();
+	}
+
 	@Managed
 	private RaiseAndMergeArtifactsProcessor raiseAndMergeArtifactsProcessor() {
 		return new RaiseAndMergeArtifactsProcessor();
 	}
-	
+
 	@Managed
 	private PublishArtifactsProcessor publishArtifactsProcessor() {
 		return new PublishArtifactsProcessor();
 	}
-	
+
 	@Managed
 	private PublishNpmPackagesProcessor publishNpmPackagesProcessor() {
 		return new PublishNpmPackagesProcessor();
 	}
-	
+
 	@Managed
 	private PreparePublishingProcessor prepareCodebaseForPublishingProcessor() {
 		return new PreparePublishingProcessor();
 	}
-	
+
 	@Managed
 	private UpdateGithubArtifactIndexProcessor updateGithubArtifactIndexProcessor() {
 		return new UpdateGithubArtifactIndexProcessor();

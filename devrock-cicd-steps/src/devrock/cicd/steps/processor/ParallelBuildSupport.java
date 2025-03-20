@@ -39,7 +39,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import com.braintribe.console.ConsoleOutputs;
@@ -49,6 +49,7 @@ import com.braintribe.execution.ExtendedThreadPoolExecutor;
 import com.braintribe.execution.graph.api.ParallelGraphExecution;
 import com.braintribe.execution.graph.api.ParallelGraphExecution.PgeItemStatus;
 import com.braintribe.execution.graph.api.ParallelGraphExecution.PgeResult;
+import com.braintribe.gm.model.reason.Maybe;
 import com.braintribe.gm.model.reason.Reason;
 import com.braintribe.gm.model.reason.Reasons;
 import com.braintribe.gm.model.reason.UnsatisfiedMaybeTunneling;
@@ -85,7 +86,7 @@ import devrock.cicd.model.api.reason.ArtifactsBuildFailed;
 			CodebaseAnalysis analysis, //
 			CodebaseDependencyAnalysis dependencyAnalysis, //
 			List<LocalArtifact> builds, //
-			Consumer<LocalArtifact> handler, //
+			Function<LocalArtifact, Maybe<?>> handler, //
 			Integer threads, //
 			Boolean skip) {
 
@@ -96,7 +97,7 @@ import devrock.cicd.model.api.reason.ArtifactsBuildFailed;
 	private static final int DEFAULT_THREAD_PRIORITY = 3;
 
 	private final List<LocalArtifact> builds;
-	private final Consumer<LocalArtifact> handler;
+	private final Function<LocalArtifact, Maybe<?>> handler;
 
 	private final Map<LocalArtifact, List<LocalArtifact>> artifactToDependers;
 	private final File alreadyBuiltTempFile;
@@ -113,7 +114,7 @@ import devrock.cicd.model.api.reason.ArtifactsBuildFailed;
 			CodebaseAnalysis analysis, //
 			CodebaseDependencyAnalysis dependencyAnalysis, //
 			List<LocalArtifact> builds, //
-			Consumer<LocalArtifact> handler, //
+			Function<LocalArtifact, Maybe<?>> handler, //
 			Integer threads, //
 			Boolean skip) {
 
@@ -327,9 +328,9 @@ import devrock.cicd.model.api.reason.ArtifactsBuildFailed;
 
 			logBuildingInfoAboutArtifact(artifact, "Starting", runningBuilds);
 
-			handler.accept(artifact);
-		}
-		finally {
+			handler.apply(artifact).get();
+
+		} finally {
 			runningBuildsCounter.decrementAndGet();
 		}
 	}

@@ -25,15 +25,18 @@ import devrock.cicd.model.api.data.CodebaseAnalysis;
 import devrock.step.model.api.StepRequest;
 
 @Alias("test")
-public interface RunTests extends StepRequest, HasArtifactHandler {
+public interface RunTests extends StepRequest {
 	EntityType<RunTests> T = EntityTypes.T(RunTests.class);
-	
+
 	String codebaseAnalysis = "codebaseAnalysis";
-	
+
 	@Mandatory
 	CodebaseAnalysis getCodebaseAnalysis();
 	void setCodebaseAnalysis(CodebaseAnalysis codebaseAnalysis);
-	
+
+	boolean getHaltOnFailure();
+	void setHaltOnFailure(boolean haltOnFailure);
+
 	@Override
 	EvalContext<? extends RunTestsResponse> eval(Evaluator<ServiceRequest> evaluator);
 }

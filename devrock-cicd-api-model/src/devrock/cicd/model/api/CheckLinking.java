@@ -23,7 +23,7 @@ import com.braintribe.model.service.api.ServiceRequest;
 import devrock.cicd.model.api.data.CodebaseAnalysis;
 import devrock.cicd.model.api.data.CodebaseDependencyAnalysis;
 
-public interface CheckLinking extends MultiThreadedStepRequest, HasArtifactHandler {
+public interface CheckLinking extends MultiThreadedStepRequest {
 	EntityType<CheckLinking> T = EntityTypes.T(CheckLinking.class);
 	
 	String codebaseAnalysis = "codebaseAnalysis";

@@ -11,21 +11,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 // ============================================================================
-package devrock.cicd.model.api;
+package devrock.cicd.model.api.reason;
 
-import java.util.function.Consumer;
-
-import com.braintribe.model.generic.GenericEntity;
-import com.braintribe.model.generic.annotation.Transient;
+import com.braintribe.gm.model.reason.Reason;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EntityTypes;
 
-import devrock.cicd.model.api.data.LocalArtifact;
-
-public interface HasArtifactHandler extends GenericEntity {
-	EntityType<HasArtifactHandler> T = EntityTypes.T(HasArtifactHandler.class);
+public interface TestsFailed extends Reason {
+	EntityType<TestsFailed> T = EntityTypes.T(TestsFailed.class);
 	
-	@Transient
-	Consumer<LocalArtifact> getHandler();
-	void setHandler(Consumer<LocalArtifact> handler);
 }

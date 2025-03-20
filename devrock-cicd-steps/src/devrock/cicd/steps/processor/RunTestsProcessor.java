@@ -13,41 +13,63 @@
 // ============================================================================
 package devrock.cicd.steps.processor;
 
-import java.util.List;
-import java.util.function.Consumer;
+import static com.braintribe.console.ConsoleOutputs.print;
+import static com.braintribe.console.ConsoleOutputs.text;
+import static com.braintribe.console.ConsoleOutputs.yellow;
 
+import java.util.List;
+import java.util.function.Function;
+
+import com.braintribe.console.ConsoleOutputs;
+import com.braintribe.console.output.ConsoleOutput;
 import com.braintribe.gm.model.reason.Maybe;
-import com.braintribe.gm.model.reason.Reasons;
-import com.braintribe.gm.model.reason.essential.InvalidArgument;
 import com.braintribe.model.processing.service.api.ReasonedServiceProcessor;
 import com.braintribe.model.processing.service.api.ServiceRequestContext;
 
 import devrock.cicd.model.api.RunTest;
 import devrock.cicd.model.api.RunTests;
 import devrock.cicd.model.api.RunTestsResponse;
-import devrock.cicd.model.api.data.CodebaseAnalysis;
 import devrock.cicd.model.api.data.LocalArtifact;
+import devrock.cicd.model.api.reason.TestsFailed;
 import devrock.cicd.steps.processing.BuildHandlers;
 
 public class RunTestsProcessor implements ReasonedServiceProcessor<RunTests, RunTestsResponse> {
 
 	@Override
 	public Maybe<? extends RunTestsResponse> processReasoned(ServiceRequestContext context, RunTests request) {
-		Consumer<LocalArtifact> handler = BuildHandlers.getHandler(context, request, RunTest.T);
-		
-		if (handler == null)
-			return Reasons.build(InvalidArgument.T).text("Transitive property RunTests.handler must not be null").toMaybe();
-		
-		CodebaseAnalysis analysis = request.getCodebaseAnalysis();
+		Function<LocalArtifact, Maybe<?>> handler = BuildHandlers.getHandler(context, request, RunTest.T);
 
-		
-		List<LocalArtifact> sequence = analysis.getBuildTests();
+		List<LocalArtifact> tests = request.getCodebaseAnalysis().getBuildTests();
 
-		sequence.forEach(handler);
-		
-		RunTestsResponse response = RunTestsResponse.T.create();
-		
-		return Maybe.complete(response);
+		printInfo(tests);
+
+		TestsFailed testsFailed = TestsFailed.T.create();
+
+		for (LocalArtifact localArtifact : tests) {
+			Maybe<?> testResultMaybe = handler.apply(localArtifact);
+
+			if (testResultMaybe.isSatisfied())
+				continue;
+
+			if (request.getHaltOnFailure())
+				return testResultMaybe.propagateReason();
+			else
+				testsFailed.causedBy(testResultMaybe.whyUnsatisfied());
+		}
+
+		if (!testsFailed.getReasons().isEmpty())
+			return testsFailed.asMaybe();
+
+		return Maybe.complete(RunTestsResponse.T.create());
+
+	}
+
+	private void printInfo(List<LocalArtifact> tests) {
+		ConsoleOutput info = tests.stream() //
+				.map(test -> yellow(test.getFolderName())) //
+				.collect(ConsoleOutputs.joiningCollector(text("\n\t"), text("Running tests: "), null));
+
+		print(info);
 	}
 
 }

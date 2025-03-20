@@ -13,12 +13,10 @@
 // ============================================================================
 package devrock.cicd.steps.processor;
 
-import java.util.function.Consumer;
+import java.util.function.Function;
 
 import com.braintribe.gm.model.reason.Maybe;
 import com.braintribe.gm.model.reason.Reason;
-import com.braintribe.gm.model.reason.Reasons;
-import com.braintribe.gm.model.reason.essential.InvalidArgument;
 import com.braintribe.model.processing.service.api.ReasonedServiceProcessor;
 import com.braintribe.model.processing.service.api.ServiceRequestContext;
 
@@ -31,14 +29,11 @@ import devrock.cicd.model.api.data.LocalArtifact;
 import devrock.cicd.steps.processing.BuildHandlers;
 
 public class CheckLinkingProcessor implements ReasonedServiceProcessor<CheckLinking, CheckLinkingResponse> {
+
 	@Override
-	public Maybe<? extends CheckLinkingResponse> processReasoned(ServiceRequestContext context,
-			CheckLinking request) {
-		Consumer<LocalArtifact> handler = BuildHandlers.getHandler(context, request, RunCheckLinking.T);
-		
-		if (handler == null)
-			return Reasons.build(InvalidArgument.T).text("Transitive property BuildArtifact.handler must not be null").toMaybe();
-		
+	public Maybe<? extends CheckLinkingResponse> processReasoned(ServiceRequestContext context, CheckLinking request) {
+		Function<LocalArtifact, Maybe<?>> handler = BuildHandlers.getHandler(context, request, RunCheckLinking.T);
+
 		CodebaseAnalysis analysis = request.getCodebaseAnalysis();
 		CodebaseDependencyAnalysis dependencyAnalysis = request.getCodebaseDependencyAnalysis();
 
@@ -47,9 +42,9 @@ public class CheckLinkingProcessor implements ReasonedServiceProcessor<CheckLink
 		Reason error = ParallelBuildSupport.runInParallel(analysis, dependencyAnalysis, analysis.getBuildLinkingChecks(), handler, threads, null);
 		if (error != null)
 			return error.asMaybe();
-		
+
 		CheckLinkingResponse response = CheckLinkingResponse.T.create();
-		
+
 		return Maybe.complete(response);
 	}
 }

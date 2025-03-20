@@ -440,17 +440,21 @@ public class AnalyzeCodebaseProcessor extends SpawningServiceProcessor<AnalyzeCo
 					.sorted(comparator) //
 					.forEach(integrationTests::add);
 
-			ConsoleOutputs.println();
+			println();
 			println(text("Build artifacts (" + orderedBuilds.size() + ") in build order:"));
 			printArtifactList(orderedBuilds, true);
 
-			ConsoleOutputs.println();
+			println();
 			println(text("Linking check artifacts (" + buildLinkingChecks.size() + "):"));
 			printArtifactList(buildLinkingChecks, false);
 			
-			ConsoleOutputs.println();
+			println();
 			println(text("Unit-test artifacts (" + buildTests.size() + "):"));
 			printArtifactList(buildTests, false);
+
+			println();
+			println(text("Integration-test artifacts (" + buildTests.size() + "):"));
+			printArtifactList(integrationTests, false);
 		}
 		
 		private void printArtifactList(Collection<LocalArtifact> artifacts, boolean withBuildReason) {
