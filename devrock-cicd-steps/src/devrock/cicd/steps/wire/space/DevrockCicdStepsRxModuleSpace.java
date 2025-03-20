@@ -82,7 +82,7 @@ public class DevrockCicdStepsRxModuleSpace implements RxModuleContract {
 		configuration.bindRequest(UpdateGithubArtifactIndex.T, this::updateGithubArtifactIndexProcessor);
 
 		configuration.bindRequest(GenerateShellCompletionScript.T, this::generateShellCompletionScriptProcessor);
-		
+
 		configuration.configureModel(this::configureApiModel);
 	}
 

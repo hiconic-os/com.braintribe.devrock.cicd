@@ -30,9 +30,9 @@ import devrock.cicd.model.api.data.LocalArtifact;
 import devrock.cicd.steps.processing.BuildHandlers;
 
 public class RunTestsProcessor implements ReasonedServiceProcessor<RunTests, RunTestsResponse> {
+
 	@Override
-	public Maybe<? extends RunTestsResponse> processReasoned(ServiceRequestContext context,
-			RunTests request) {
+	public Maybe<? extends RunTestsResponse> processReasoned(ServiceRequestContext context, RunTests request) {
 		Consumer<LocalArtifact> handler = BuildHandlers.getHandler(context, request, RunTest.T);
 		
 		if (handler == null)
@@ -49,4 +49,5 @@ public class RunTestsProcessor implements ReasonedServiceProcessor<RunTests, Run
 		
 		return Maybe.complete(response);
 	}
+
 }

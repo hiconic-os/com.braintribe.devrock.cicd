@@ -51,6 +51,7 @@ public interface LocalArtifact extends GenericEntity {
 	BuildReason getBuildReason();
 	void setBuildReason(BuildReason buildReason);
 
+	/** If this is <code>true</code> then {@link #getIntegrationTest()} is <code>false</code>. */
 	boolean getTest();
 	void setTest(boolean test);
 
@@ -60,6 +61,7 @@ public interface LocalArtifact extends GenericEntity {
 	boolean getBundle();
 	void setBundle(boolean bundle);
 
+	/** If this is <code>true</code> then #getTest() is <code>false</code>. */
 	boolean getIntegrationTest();
 	void setIntegrationTest(boolean integrationTest);
 

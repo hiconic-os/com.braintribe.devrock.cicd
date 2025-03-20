@@ -349,14 +349,45 @@ public class AnalyzeCodebaseProcessor extends SpawningServiceProcessor<AnalyzeCo
 			return dependers;
 		}
 		
+		private Set<LocalArtifact> getTransitiveDependersNotPresentInArgument(List<LocalArtifact> localArtifacts) {
+			Set<LocalArtifact> dependers = new HashSet<>();
+
+			for (LocalArtifact localArtifact : localArtifacts)
+				addToDependers(localArtifact, dependers);
+
+			dependers.removeAll(localArtifacts);
+
+			return dependers;
+		}
+
+		private void addToDependers(LocalArtifact localArtifact, Set<LocalArtifact> dependers) {
+			if (!dependers.add(localArtifact))
+				return;
+
+			String artifactId = localArtifact.getArtifactIdentification().getArtifactId();
+
+			AnalysisArtifact analysisArtifact = dependencyAnalysis.getArtifactIndex().get(artifactId);
+
+			for (AnalysisDependency dependency : analysisArtifact.getDependers()) {
+				AnalysisArtifact depender = dependency.getDepender();
+				if (depender == null)
+					continue;
+
+				LocalArtifact localDepender = localArtifactsByFolderName.get(depender.getArtifactId());
+				addToDependers(localDepender, dependers);
+			}
+		}
+
 		private void transferLocalArtifactToAnalysis() {
 			
 			List<LocalArtifact> artifacts = codebaseAnalysis.getArtifacts();
 			List<LocalArtifact> buildLinkingChecks = codebaseAnalysis.getBuildLinkingChecks();
 			List<LocalArtifact> buildTests = codebaseAnalysis.getBuildTests();
+			List<LocalArtifact> integrationTests = codebaseAnalysis.getIntegrationTests();
 			
 			List<LocalArtifact> builds = new ArrayList<>();
 			List<LocalArtifact> testArtifacts = new ArrayList<>();
+			List<LocalArtifact> integrationTestArtifacts = new ArrayList<>();
 			
 			for (LocalArtifact localArtifact: localArtifactsByFolderName.values()) {
 				artifacts.add(localArtifact);
@@ -368,6 +399,7 @@ public class AnalyzeCodebaseProcessor extends SpawningServiceProcessor<AnalyzeCo
 					}
 					else if (localArtifact.getIntegrationTest()) {
 						localArtifact.setBuildReason(BuildReason.NONE);
+						integrationTestArtifacts.add(localArtifact);
 					}
 					else if (localArtifact.getReleaseView() //
 							&& !request.getAllowReleaseViewBuilding() //
@@ -386,6 +418,7 @@ public class AnalyzeCodebaseProcessor extends SpawningServiceProcessor<AnalyzeCo
 			codebaseAnalysis.setBuilds(orderedBuilds);
 			
 			Set<LocalArtifact> directDependers = getDirectDependersNotPresentInArgument(builds);
+			Set<LocalArtifact> transitiveDependers = getTransitiveDependersNotPresentInArgument(builds);
 			
 			Comparator<LocalArtifact> comparator = Comparator.comparing(a -> a.getArtifactIdentification().getArtifactId());
 			
@@ -401,6 +434,12 @@ public class AnalyzeCodebaseProcessor extends SpawningServiceProcessor<AnalyzeCo
 				.sorted(comparator) //
 				.forEach(buildTests::add);
 			
+			// transfer integration test artifacts from transitiveDependers and artifacts to be built
+			Stream.concat(transitiveDependers.stream().filter(LocalArtifact::getIntegrationTest), integrationTestArtifacts.stream()) //
+					.distinct() //
+					.sorted(comparator) //
+					.forEach(integrationTests::add);
+
 			ConsoleOutputs.println();
 			println(text("Build artifacts (" + orderedBuilds.size() + ") in build order:"));
 			printArtifactList(orderedBuilds, true);

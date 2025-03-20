@@ -54,6 +54,9 @@ public interface CodebaseAnalysis extends GenericEntity {
 	List<LocalArtifact> getBuildTests();
 	void setBuildTests(List<LocalArtifact> buildTests);
 	
+	List<LocalArtifact> getIntegrationTests();
+	void setIntegrationTests(List<LocalArtifact> integrationTests);
+
 	String getBasePath();
 	void setBasePath(String basePath);
 }
