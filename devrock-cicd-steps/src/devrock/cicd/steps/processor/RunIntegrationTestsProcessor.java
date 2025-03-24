@@ -29,6 +29,7 @@ import java.net.Socket;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.Function;
@@ -258,28 +259,22 @@ class IntegrationTestsRunner {
 	private void waitForTomcatToStop_Or_DestroyJvmProcess() throws InterruptedException {
 		waitForTomcat(false, SERVER_STOP_TIMEOUT_SEC);
 
-		println(text("Server should be stoped."));
-		if (tomcatProcessHandle != null) {
-			println(text("JVM process is alive: " + tomcatProcessHandle.isAlive()));
+		if (tomcatProcessHandle != null)
+			checkIfTomcatProcessNotAlive();
 
-			// Most likely impossible, as Server should be shut down, or we should have gotten an exception due to timeout.
-			if (tomcatProcessHandle.isAlive()) {
-				println(text("Destroying server process forcibly!"));
-				tomcatProcessHandle.destroyForcibly();
-			}
-		}
+		println(text("Server is stopped."));
 	}
 
-	private void waitForTomcat(boolean start, int maxAttempts) throws InterruptedException {
-		String startOrStop = start ? "start" : "stop";
+	private void waitForTomcat(boolean waitingForStart, int maxAttempts) throws InterruptedException {
+		String startOrStop = waitingForStart ? "start" : "stop";
 		println(text("Waiting for Server to " + startOrStop + "..."));
 
 		int attempt = 0;
 
-		while (doesServerRun() != start) {
+		while (doesServerRun() != waitingForStart) {
 			if (attempt++ >= maxAttempts)
 				throw new RuntimeException("Tomcat failed to " + startOrStop + " within " + maxAttempts + " seconds");
-			Thread.sleep(1000);
+			Thread.sleep(Duration.ofSeconds(1L));
 		}
 	}
 
@@ -292,12 +287,47 @@ class IntegrationTestsRunner {
 		}
 	}
 
+	private void checkIfTomcatProcessNotAlive() throws InterruptedException {
+		println(sequence(text("JVM process is alive: "), yellow("" + tomcatProcessHandle.isAlive())));
+		if (!tomcatProcessHandle.isAlive())
+			return;
+
+		println(text("Waiting a little longer for the JVM process to finish."));
+		waitForTomcatProcessToDie();
+
+		if (!tomcatProcessHandle.isAlive())
+			return;
+
+		println(text("JVM process still didn't finish, destroying forcibly now!"));
+		try {
+			tomcatProcessHandle.destroyForcibly();
+
+		} catch (RuntimeException e) {
+			println(text("Error while destroying JVM process forcibly."));
+			e.printStackTrace();
+			if (!tomcatProcessHandle.isAlive())
+				throw e;
+
+			println(text("Despite the error, the JVM process is not alive anymore, so we assume it's fine and continue."));
+		}
+	}
+
+	private void waitForTomcatProcessToDie() throws InterruptedException {
+		// This should be fast, but just in case
+		int maxSeconds = SERVER_STOP_TIMEOUT_SEC / 2;
+		for (int i = 0; i < maxSeconds; i++) {
+			Thread.sleep(Duration.ofSeconds(1L));
+			if (!tomcatProcessHandle.isAlive())
+				return;
+		}
+	}
+
 	private List<String> catalinaStartCmds() {
 		return catalinaCmds("run");
 	}
 
 	private List<String> catalinaStopCmds() {
-		return catalinaCmds("stop", "60");
+		return catalinaCmds("stop", "" + SERVER_STOP_TIMEOUT_SEC);
 	}
 
 	private List<String> catalinaCmds(String... cmds) {
