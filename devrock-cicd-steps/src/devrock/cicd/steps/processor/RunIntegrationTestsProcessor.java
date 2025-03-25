@@ -223,6 +223,15 @@ class IntegrationTestsRunner {
 
 			if (tomcatProcessHandle != null)
 				println(sequence(text("Tomcat running with pid: "), yellow("" + tomcatProcessHandle.pid())));
+			else {
+				println(sequence(text("Tomcat process not found. Processes:")));
+				println(p.descendants() //
+						.map(ph -> ph.info().command().orElse("")) //
+						.map(s -> text(s)) //
+						.collect(ConsoleOutputs.joiningCollector(text("\n"))) //
+				);
+			}
+				
 
 		} catch (Exception e) {
 			log.warn("Error while getting Tomcat process handle", e);
