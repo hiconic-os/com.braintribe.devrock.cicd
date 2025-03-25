@@ -338,7 +338,7 @@ class IntegrationTestsRunner {
 	}
 
 	private static final List<String> CATALINA_CMDS_WIN = asList("cmd.exe", "/c", "catalina.bat");
-	private static final List<String> CATALINA_CMDS_UNIX = asList("catalina.sh");
+	private static final List<String> CATALINA_CMDS_UNIX = asList("sh", "catalina.sh");
 
 	private List<String> catalinaForOs() {
 		return OsTools.isUnixSystem() ? CATALINA_CMDS_UNIX : CATALINA_CMDS_WIN;

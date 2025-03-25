@@ -27,7 +27,7 @@ import com.braintribe.model.service.api.ServiceRequest;
 import devrock.cicd.model.api.data.CodebaseAnalysis;
 import devrock.step.model.api.StepRequest;
 
-@Alias("run-itest")
+@Alias("itest")
 @Description("Runs integration tests")
 public interface RunIntegrationTests extends StepRequest {
 
