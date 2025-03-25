@@ -423,7 +423,8 @@ public class AnalyzeCodebaseProcessor extends SpawningServiceProcessor<AnalyzeCo
 			Comparator<LocalArtifact> comparator = Comparator.comparing(a -> a.getArtifactIdentification().getArtifactId());
 			
 			// transfer compile check artifacts from directDependers and artifacts to be built
-			Stream.concat(directDependers.stream(), testArtifacts.stream()) //
+			Stream.of(directDependers, testArtifacts, integrationTestArtifacts) //
+				.flatMap(Collection::stream) //
 				.distinct() //
 				.sorted(comparator) //
 				.forEach(buildLinkingChecks::add);
@@ -453,7 +454,7 @@ public class AnalyzeCodebaseProcessor extends SpawningServiceProcessor<AnalyzeCo
 			printArtifactList(buildTests, false);
 
 			println();
-			println(text("Integration-test artifacts (" + buildTests.size() + "):"));
+			println(text("Integration-test artifacts (" + integrationTests.size() + "):"));
 			printArtifactList(integrationTests, false);
 		}
 		

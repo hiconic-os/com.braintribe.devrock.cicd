@@ -360,8 +360,8 @@ class IntegrationTestsRunner {
 	}
 
 	private List<String> jinniOptions() {
-		// TODO only if is ANSI console
-		return Arrays.asList(":", "options", "--colored");
+		// TODO only if is ANSI console, but not GH actions, as the console doesn't support overwriting output (e.g. DL monitor) 
+		return Arrays.asList(":", "options", "--colored", "false");
 	}
 
 }
