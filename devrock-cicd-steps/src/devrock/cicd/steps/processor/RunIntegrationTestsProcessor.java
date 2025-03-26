@@ -23,6 +23,7 @@ import static java.util.Arrays.asList;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.Socket;
@@ -38,7 +39,6 @@ import com.braintribe.console.ConsoleOutputs;
 import com.braintribe.console.output.ConsoleOutput;
 import com.braintribe.gm.model.reason.Maybe;
 import com.braintribe.gm.model.reason.Reason;
-import com.braintribe.gm.model.reason.Reasons;
 import com.braintribe.gm.model.reason.essential.InternalError;
 import com.braintribe.logging.Logger;
 import com.braintribe.model.processing.service.api.ReasonedServiceProcessor;
@@ -51,7 +51,6 @@ import devrock.cicd.model.api.RunTest;
 import devrock.cicd.model.api.RunTestsResponse;
 import devrock.cicd.model.api.data.CodebaseAnalysis;
 import devrock.cicd.model.api.data.LocalArtifact;
-import devrock.cicd.model.api.reason.TestsFailed;
 import devrock.cicd.steps.processing.BuildHandlers;
 import devrock.process.execution.ProcessExecution;
 
@@ -72,6 +71,7 @@ class IntegrationTestsRunner {
 	private final File workDir;
 
 	private Reason error;
+	private Reason shutdownError;
 
 	private LocalArtifact currentTest;
 	private String currentSetupDep;
@@ -82,6 +82,8 @@ class IntegrationTestsRunner {
 	private static final int SERVER_STOP_TIMEOUT_SEC = 60;
 
 	private static final int PORT = 8080;
+
+	private static final String SHUTDOWN_CMD = "SHUTDOWN";
 
 	private static final Logger log = Logger.getLogger(IntegrationTestsRunner.class);
 
@@ -152,7 +154,8 @@ class IntegrationTestsRunner {
 		return runJinni( //
 				"setup-local-tomcat-platform", //
 				"--setupDependency", currentSetupDep, //
-				"--installationPath", currentSetupDirectory.getAbsolutePath() //
+				"--installationPath", currentSetupDirectory.getAbsolutePath(), //
+				"--shutdownCommand", SHUTDOWN_CMD //
 		);
 	}
 
@@ -169,7 +172,8 @@ class IntegrationTestsRunner {
 	private ProcessHandle tomcatProcessHandle;
 
 	private boolean startServer_run_stopServer() {
-		println(sequence(text("Starting the "), cyan("Hiconic"), text(" server..."))); // just a little fancy
+		println(sequence(text("Starting the "), cyan("Hiconic"), text(" server...")));
+
 		Maybe<String> resultMaybe = ProcessExecution.buildCommand(currentTomcatBinDir, catalinaStartCmds())//
 				.withInheritIo(true) //
 				.withTask(p -> runTest_And_StopServer(p)) //
@@ -179,6 +183,7 @@ class IntegrationTestsRunner {
 			return false;
 
 		error = resultMaybe.whyUnsatisfied();
+
 		return error == null;
 	}
 
@@ -190,24 +195,23 @@ class IntegrationTestsRunner {
 
 			waitForHiconicAppToStart();
 
-			println(sequence(text("\nServer started. Running test: "), yellow(currentTest.getFolderName())));
-
-			Maybe<?> testResultMaybe = handler.apply(currentTest);
-			error = testResultMaybe.whyUnsatisfied();
-			if (error != null)
-				return;
+			runTest();
 
 		} finally {
-			println(sequence(text("Stopping the "), cyan("Hiconic"), text(" server..."))); // just a little fancy
-			Maybe<String> stopMaybe = ProcessExecution.buildCommand(currentTomcatBinDir, catalinaStopCmds())//
-					.withInheritIo(true) //
-					.runReasoned();
+			shutdownTomcat();
+			// Maybe<String> stopMaybe = ProcessExecution.buildCommand(currentTomcatBinDir, catalinaStopCmds())//
+			// .withInheritIo(true) //
+			// .runReasoned();
+			//
+			// if (stopMaybe.isUnsatisfied()) {
+			// error = Reasons.build(TestsFailed.T).cause(stopMaybe.whyUnsatisfied()).toReason();
+			// }
 
-			if (stopMaybe.isUnsatisfied()) {
-				error = Reasons.build(TestsFailed.T).cause(stopMaybe.whyUnsatisfied()).toReason();
-			}
-
-			waitForTomcatToStop_Or_DestroyJvmProcess();
+			if (shutdownError == null)
+				waitForTomcatToStop_Or_DestroyJvmProcess();
+			else if (error == null)
+				// If we had no error, we fail because of shutdown error
+				error = shutdownError;
 		}
 	}
 
@@ -231,7 +235,6 @@ class IntegrationTestsRunner {
 						.collect(ConsoleOutputs.joiningCollector(text("\n"))) //
 				);
 			}
-				
 
 		} catch (Exception e) {
 			log.warn("Error while getting Tomcat process handle", e);
@@ -265,25 +268,55 @@ class IntegrationTestsRunner {
 		waitForTomcat(true, SERVER_START_TIMEOUT_SEC);
 	}
 
+	private void runTest() {
+		println(sequence(text("\nServer started. Running test: "), yellow(currentTest.getFolderName())));
+
+		Maybe<?> testResultMaybe = handler.apply(currentTest);
+		error = testResultMaybe.whyUnsatisfied();
+	}
+
+	private void shutdownTomcat() {
+		println(sequence(text("Stopping the "), cyan("Hiconic"), text(" server...")));
+
+		try (Socket socket = new Socket("localhost", 8005); OutputStream out = socket.getOutputStream()) {
+			// Send the shutdown command
+			out.write(SHUTDOWN_CMD.getBytes());
+			out.flush();
+			println(sequence(text("Shutdown command successfully sent to "), cyan("Tomcat")));
+
+		} catch (Exception e) {
+			e.printStackTrace();
+			shutdownError = InternalError.from(e, "Shutting down Tomcat failed");
+		}
+	}
+
 	private void waitForTomcatToStop_Or_DestroyJvmProcess() throws InterruptedException {
 		waitForTomcat(false, SERVER_STOP_TIMEOUT_SEC);
 
 		if (tomcatProcessHandle != null)
 			checkIfTomcatProcessNotAlive();
+		else
+			/* In GitHub we don't have the tomcatProcessHandle, but locally the server sometimes needed a little extra time until the process was
+			 * really terminated, so let's wait just in case */
+			sleepOneSecond();
 
 		println(text("Server is stopped."));
 	}
 
 	private void waitForTomcat(boolean waitingForStart, int maxAttempts) throws InterruptedException {
 		String startOrStop = waitingForStart ? "start" : "stop";
-		println(text("Waiting for Server to " + startOrStop + "..."));
+		println(text("Waiting for Server to " + startOrStop + " for up to " + maxAttempts + " seconds."));
 
 		int attempt = 0;
 
 		while (doesServerRun() != waitingForStart) {
+			if (attempt > 0 && attempt % 10 == 0)
+				println(text(attempt + " seconds and still nothing..."));
+
 			if (attempt++ >= maxAttempts)
 				throw new RuntimeException("Tomcat failed to " + startOrStop + " within " + maxAttempts + " seconds");
-			Thread.sleep(Duration.ofSeconds(1L));
+
+			sleepOneSecond();
 		}
 	}
 
@@ -325,7 +358,7 @@ class IntegrationTestsRunner {
 		// This should be fast, but just in case
 		int maxSeconds = SERVER_STOP_TIMEOUT_SEC / 2;
 		for (int i = 0; i < maxSeconds; i++) {
-			Thread.sleep(Duration.ofSeconds(1L));
+			sleepOneSecond();
 			if (!tomcatProcessHandle.isAlive())
 				return;
 		}
@@ -335,9 +368,9 @@ class IntegrationTestsRunner {
 		return catalinaCmds("run");
 	}
 
-	private List<String> catalinaStopCmds() {
-		return catalinaCmds("stop", "" + SERVER_STOP_TIMEOUT_SEC);
-	}
+	// private List<String> catalinaStopCmds() {
+	// return catalinaCmds("stop", "" + SERVER_STOP_TIMEOUT_SEC);
+	// }
 
 	private List<String> catalinaCmds(String... cmds) {
 		return concat( //
@@ -369,8 +402,12 @@ class IntegrationTestsRunner {
 	}
 
 	private List<String> jinniOptions() {
-		// TODO only if is ANSI console, but not GH actions, as the console doesn't support overwriting output (e.g. DL monitor) 
+		// TODO only if we're in ANSI console, but not GH actions, as the console supports color but not overwriting output (e.g. DL monitor)
 		return Arrays.asList(":", "options", "--colored", "false");
+	}
+
+	private void sleepOneSecond() throws InterruptedException {
+		Thread.sleep(Duration.ofSeconds(1L));
 	}
 
 }
