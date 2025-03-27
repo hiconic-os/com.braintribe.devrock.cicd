@@ -40,7 +40,7 @@ public class ProcessExecutionBuilder {
 
 	public ProcessExecutionBuilder withDescription(String description) {
 		this.description = description;
-		return this;		
+		return this;
 	}
 
 	public ProcessExecutionBuilder withEnvironment(Map<String, String> environment) {
@@ -58,11 +58,18 @@ public class ProcessExecutionBuilder {
 		return this;
 	}
 
+	/**
+	 * Task which is executed after the process was started, but before we start waiting for it to terminate.
+	 * <p>
+	 * This is relevant e.g. for processes that need to be terminated in a special way, e.g. when starting a Tomcat. 
+	 * <p>
+	 * Note that should this task throw an exception, we destroy the process via {@link Process#destroyForcibly()}.
+	 */
 	public ProcessExecutionBuilder withTask(XConsumer<Process> task) {
 		this.task = task;
 		return this;
 	}
-	
+
 	public Maybe<String> runReasoned() {
 		ProcessResults results;
 
@@ -116,12 +123,8 @@ public class ProcessExecutionBuilder {
 
 		if (task != null)
 			runTask(process);
-		
-		try {
-			process.waitFor();
-		} catch (InterruptedException e) {
-			throw new IllegalStateException(e);
-		}
+
+		waitForOrDestroy(process);
 
 		int retVal = process.exitValue();
 
@@ -134,6 +137,14 @@ public class ProcessExecutionBuilder {
 		return new ProcessResults(retVal, inputReader.getStreamResults(), errorReader.getStreamResults());
 	}
 
+	private Process start(ProcessBuilder processBuilder) {
+		try {
+			return processBuilder.start();
+		} catch (IOException e1) {
+			throw new UncheckedIOException(e1);
+		}
+	}
+
 	private void runTask(Process process) {
 		try {
 			task.accept(process);
@@ -142,11 +153,15 @@ public class ProcessExecutionBuilder {
 		}
 	}
 
-	private Process start(ProcessBuilder processBuilder) {
+	private void waitForOrDestroy(Process process) {
 		try {
-			return processBuilder.start();
-		} catch (IOException e1) {
-			throw new UncheckedIOException(e1);
+			if (taskException != null)
+				process.destroyForcibly();
+
+			process.waitFor();
+
+		} catch (InterruptedException e) {
+			throw new IllegalStateException(e);
 		}
 	}
 
