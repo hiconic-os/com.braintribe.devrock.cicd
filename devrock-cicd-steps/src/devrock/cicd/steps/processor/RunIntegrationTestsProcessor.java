@@ -30,6 +30,7 @@ import java.net.Socket;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
@@ -69,6 +70,7 @@ class IntegrationTestsRunner {
 	private final CodebaseAnalysis codebaseAnalysis;
 	private final List<LocalArtifact> tests;
 	private final File workDir;
+	private final File outLogsDir;
 
 	private Reason error;
 	private Reason shutdownError;
@@ -77,6 +79,7 @@ class IntegrationTestsRunner {
 	private String currentSetupDep;
 	private File currentSetupDirectory;
 	private File currentTomcatBinDir;
+	private File currentTomcatLogsDir;
 
 	private static final int SERVER_START_TIMEOUT_SEC = 120;
 	private static final int SERVER_STOP_TIMEOUT_SEC = 60;
@@ -92,6 +95,7 @@ class IntegrationTestsRunner {
 		this.codebaseAnalysis = request.getCodebaseAnalysis();
 		this.tests = codebaseAnalysis.getIntegrationTests();
 		this.workDir = new File(request.getWorkingDirectory());
+		this.outLogsDir = new File(workDir, "logs");
 	}
 
 	public Maybe<? extends RunTestsResponse> run() {
@@ -100,7 +104,7 @@ class IntegrationTestsRunner {
 		try {
 			FileTools.ensureDirectoryExists(workDir);
 		} catch (Exception e) {
-			return InternalError.from(e, "Error while ensuring working directory: " + workDir.getAbsolutePath()).asMaybe();
+			return InternalError.from(e, "Error while ensuring working directory: " + pathOf(workDir)).asMaybe();
 		}
 
 		for (LocalArtifact test : tests) {
@@ -115,7 +119,7 @@ class IntegrationTestsRunner {
 
 	private void printInfo() {
 		ConsoleOutput prefix = sequence( //
-				text("Running integration tests in working dir: "), yellow(workDir.getAbsolutePath()), text(":\n\t") //
+				text("Running integration tests in working dir: "), yellow(pathOf(workDir)), text(":\n\t") //
 		);
 
 		ConsoleOutput info = tests.stream() //
@@ -125,14 +129,19 @@ class IntegrationTestsRunner {
 		println(info);
 	}
 
-	private boolean runIntegrationTest(LocalArtifact test) {
+	private void runIntegrationTest(LocalArtifact test) {
 		println(sequence(text("\nRunning: "), yellow(test.getFolderName())));
 
-		return true && //
+		boolean result = true && //
 				prepareContext(test) && //
 				setupServer() && //
 				startServer_run_stopServer() //
 		;
+
+		copyLogs();
+
+		if (!result)
+			println(sequence(text("\nSomething went wrong while running: "), yellow(test.getFolderName())));
 	}
 
 	private boolean prepareContext(LocalArtifact test) {
@@ -143,7 +152,11 @@ class IntegrationTestsRunner {
 		currentSetupDep = codebaseAnalysis.getGroupId() + ":" + setupArtifactId + "#" + codebaseAnalysis.getGroupVersion();
 
 		currentSetupDirectory = new File(workDir, setupArtifactId);
-		currentTomcatBinDir = currentSetupDirectory.toPath().resolve("runtime").resolve("host").resolve("bin").toFile();
+
+		Path hostPath = currentSetupDirectory.toPath().resolve("runtime").resolve("host");
+
+		currentTomcatBinDir = hostPath.resolve("bin").toFile();
+		currentTomcatLogsDir = hostPath.resolve("logs").toFile();
 
 		return true;
 	}
@@ -364,6 +377,19 @@ class IntegrationTestsRunner {
 		}
 	}
 
+	private void copyLogs() {
+		if (!currentTomcatLogsDir.isDirectory()) {
+			println(sequence(text("Logs directory doesn't exist: "), yellow(pathOf(currentTomcatLogsDir))));
+			return;
+		}
+
+		File currentOutLogsDir = new File(outLogsDir, currentTest.getFolderName());
+
+		println(sequence(text("Copying logs from\n\t"), yellow(pathOf(currentTomcatLogsDir)), text(" to "), yellow(pathOf(currentOutLogsDir))));
+
+		FileTools.copy(currentTomcatLogsDir).as(currentOutLogsDir).please();
+	}
+
 	private List<String> catalinaStartCmds() {
 		return catalinaCmds("run");
 	}
@@ -408,6 +434,14 @@ class IntegrationTestsRunner {
 
 	private void sleepOneSecond() throws InterruptedException {
 		Thread.sleep(Duration.ofSeconds(1L));
+	}
+
+	private String pathOf(File f) {
+		try {
+			return f.getCanonicalPath();
+		} catch (IOException e) {
+			return f.getAbsolutePath();
+		}
 	}
 
 }
