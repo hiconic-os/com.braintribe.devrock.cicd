@@ -385,7 +385,7 @@ class IntegrationTestsRunner {
 
 		File currentOutLogsDir = new File(outLogsDir, currentTest.getFolderName());
 
-		println(sequence(text("Copying logs from\n\t"), yellow(pathOf(currentTomcatLogsDir)), text(" to "), yellow(pathOf(currentOutLogsDir))));
+		println(sequence(text("Copying logs from\n\t"), yellow(pathOf(currentTomcatLogsDir)), text("\nto\n\t"), yellow(pathOf(currentOutLogsDir))));
 
 		FileTools.copy(currentTomcatLogsDir).as(currentOutLogsDir).please();
 	}

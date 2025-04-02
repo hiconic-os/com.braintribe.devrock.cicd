@@ -15,7 +15,9 @@ package devrock.cicd.steps.processor;
 
 import static com.braintribe.console.ConsoleOutputs.brightBlue;
 import static com.braintribe.console.ConsoleOutputs.println;
+import static com.braintribe.console.ConsoleOutputs.sequence;
 import static com.braintribe.console.ConsoleOutputs.text;
+import static com.braintribe.console.ConsoleOutputs.yellow;
 import static com.braintribe.devrock.mc.core.commons.McOutputs.versionedArtifactIdentification;
 import static com.braintribe.utils.lcd.CollectionTools2.newMap;
 import static com.braintribe.utils.lcd.StringTools.isEmpty;
@@ -551,55 +553,10 @@ public class AnalyzeCodebaseProcessor extends SpawningServiceProcessor<AnalyzeCo
 			return compiledArtifactMaybe.get();
 		}
 
-		private void classifyArtifact(LocalArtifact localArtifact, CompiledArtifact ca, CompiledArtifact parentCa) {
-			String packaging = Optional.ofNullable(localArtifact.getPackaging()).map(String::toLowerCase).orElse("jar");
-			
-			switch (packaging) {
-				case "war":
-				case "ear":
-				case "bundle":
-				case "zip":
-					localArtifact.setBundle(true);
-					break;
-				default:
-					break;
-			}
-			
-			String artifactId = localArtifact.getArtifactIdentification().getArtifactId();
-			
-			if (artifactId.endsWith("-integration-test")) {
-				localArtifact.setIntegrationTest(true);
-			}
-			else if (artifactId.endsWith("-test")) {
-				localArtifact.setTest(true);
-			}
-			else if ("true".equals( ca.getProperties().get("release-view"))) {
-				localArtifact.setReleaseView(true);
-			}
-
-			if (isNpmPackage(ca, parentCa))
-				localArtifact.setNpmPackage(true);
-		}
-
-		private boolean isNpmPackage(CompiledArtifact ca, CompiledArtifact parentCa) {
-			Map<String, String> props = newMap();
-
-			if (parentCa != null)
-				props.putAll(parentCa.getProperties());
-
-			props.putAll(ca.getProperties());
-
-			if (isEmpty(props.get("npmRegistryUrl")))
-				return false;
-
-			return "model".equals(props.get("archetype")) || //
-					!isEmpty(props.get("npmPackaging"));
-		}
-
 		private Maybe<LocalArtifact> readLocalArtifact(File folder, CompiledArtifact ca, CompiledArtifact parentCa) {
 			LocalArtifact localArtifact = buildLocalArtifact(folder, ca);
 
-			classifyArtifact(localArtifact, ca, parentCa);
+			classifyArtifact(localArtifact, folder, ca, parentCa);
 
 			return Maybe.complete(localArtifact);
 		}
@@ -634,6 +591,58 @@ public class AnalyzeCodebaseProcessor extends SpawningServiceProcessor<AnalyzeCo
 			return localArtifact;
 		}
 		
+		private void classifyArtifact(LocalArtifact localArtifact, File folder, CompiledArtifact ca, CompiledArtifact parentCa) {
+			String packaging = Optional.ofNullable(localArtifact.getPackaging()).map(String::toLowerCase).orElse("jar");
+
+			switch (packaging) {
+				case "war":
+				case "ear":
+				case "bundle":
+				case "zip":
+					localArtifact.setBundle(true);
+					break;
+				default:
+					break;
+			}
+
+			String artifactId = localArtifact.getArtifactIdentification().getArtifactId();
+
+			if (artifactId.endsWith("-integration-test")) {
+				if (hasSetup(artifactId, folder))
+					localArtifact.setIntegrationTest(true);
+				else
+					println(sequence(text("Ignoring integration test as there is no corresponding setup: "), yellow(artifactId)));
+
+			} else if (artifactId.endsWith("-test")) {
+				localArtifact.setTest(true);
+
+			} else if ("true".equals(ca.getProperties().get("release-view"))) {
+				localArtifact.setReleaseView(true);
+			}
+
+			if (isNpmPackage(ca, parentCa))
+				localArtifact.setNpmPackage(true);
+		}
+
+		private boolean hasSetup(String artifactId, File folder) {
+			return new File(folder.getParent(), artifactId + "-setup").isDirectory();
+		}
+
+		private boolean isNpmPackage(CompiledArtifact ca, CompiledArtifact parentCa) {
+			Map<String, String> props = newMap();
+
+			if (parentCa != null)
+				props.putAll(parentCa.getProperties());
+
+			props.putAll(ca.getProperties());
+
+			if (isEmpty(props.get("npmRegistryUrl")))
+				return false;
+
+			return "model".equals(props.get("archetype")) || //
+					!isEmpty(props.get("npmPackaging"));
+		}
+
 		private Reason determineBuildArtifactsByChanges() {
 			Reason error = determineBuildArtifactsByFolderChanges();
 			if (error != null)
