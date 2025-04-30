@@ -132,13 +132,18 @@ class IntegrationTestsRunner {
 	private void runIntegrationTest(LocalArtifact test) {
 		println(sequence(text("\nRunning: "), yellow(test.getFolderName())));
 
-		boolean result = true && //
+		final boolean result;
+
+		try {
+			result = true && //
 				prepareContext(test) && //
 				setupServer() && //
 				startServer_run_stopServer() //
-		;
-
-		copyLogs();
+			;
+		}
+		finally {
+			copyLogs();
+		}
 
 		if (!result)
 			println(sequence(text("\nSomething went wrong while running: "), yellow(test.getFolderName())));
