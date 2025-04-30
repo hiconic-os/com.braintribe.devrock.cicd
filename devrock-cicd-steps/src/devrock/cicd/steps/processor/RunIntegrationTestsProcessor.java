@@ -132,13 +132,16 @@ class IntegrationTestsRunner {
 	private void runIntegrationTest(LocalArtifact test) {
 		println(sequence(text("\nRunning: "), yellow(test.getFolderName())));
 
-		boolean result = true && //
-				prepareContext(test) && //
-				setupServer() && //
-				startServer_run_stopServer() //
-		;
-
-		copyLogs();
+		try {
+			boolean result = true && //
+					prepareContext(test) && //
+					setupServer() && //
+					startServer_run_stopServer() //
+			;
+		}
+		finally {
+			copyLogs();
+		}
 
 		if (!result)
 			println(sequence(text("\nSomething went wrong while running: "), yellow(test.getFolderName())));
@@ -182,7 +185,7 @@ class IntegrationTestsRunner {
 		return error == null;
 	}
 
-	private ProcessHandle tomcatProcessHandle;
+	private ProcessHandle tomcatProcessHandle;f
 
 	private boolean startServer_run_stopServer() {
 		println(sequence(text("Starting the "), cyan("Hiconic"), text(" server...")));
