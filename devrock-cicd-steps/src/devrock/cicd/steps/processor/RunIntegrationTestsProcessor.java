@@ -173,7 +173,8 @@ class IntegrationTestsRunner {
 				"setup-local-tomcat-platform", //
 				"--setupDependency", currentSetupDep, //
 				"--installationPath", currentSetupDirectory.getAbsolutePath(), //
-				"--shutdownCommand", SHUTDOWN_CMD //
+				"--shutdownCommand", SHUTDOWN_CMD, //
+				"--runtimeProperties", "TRIBEFIRE_PUBLIC_SERVICES_URL", "${TRIBEFIRE_SERVICES_URL}"
 		);
 	}
 
