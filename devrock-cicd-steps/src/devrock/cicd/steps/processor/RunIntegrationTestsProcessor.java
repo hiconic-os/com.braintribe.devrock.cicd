@@ -77,7 +77,8 @@ class IntegrationTestsRunner {
 
 	private LocalArtifact currentTest;
 	private String currentSetupDep;
-	private File currentSetupDirectory;
+	private File currentSetupArtifactDir;
+	private File currentSetupInstallationDir;
 	private File currentTomcatBinDir;
 	private File currentTomcatLogsDir;
 
@@ -138,6 +139,7 @@ class IntegrationTestsRunner {
 			result = true && //
 				prepareContext(test) && //
 				setupServer() && //
+				setupEnvironment() && //
 				startServer_run_stopServer() //
 			;
 		}
@@ -149,6 +151,8 @@ class IntegrationTestsRunner {
 			println(sequence(text("\nSomething went wrong while running: "), yellow(test.getFolderName())));
 	}
 
+	// prepareContext
+
 	private boolean prepareContext(LocalArtifact test) {
 		String setupArtifactId = test.getFolderName() + "-setup";
 
@@ -156,9 +160,10 @@ class IntegrationTestsRunner {
 
 		currentSetupDep = codebaseAnalysis.getGroupId() + ":" + setupArtifactId + "#" + codebaseAnalysis.getGroupVersion();
 
-		currentSetupDirectory = new File(workDir, setupArtifactId);
+		currentSetupArtifactDir = new File(setupArtifactId);
+		currentSetupInstallationDir = new File(workDir, setupArtifactId);
 
-		Path hostPath = currentSetupDirectory.toPath().resolve("runtime").resolve("host");
+		Path hostPath = currentSetupInstallationDir.toPath().resolve("runtime").resolve("host");
 
 		currentTomcatBinDir = hostPath.resolve("bin").toFile();
 		currentTomcatLogsDir = hostPath.resolve("logs").toFile();
@@ -166,15 +171,17 @@ class IntegrationTestsRunner {
 		return true;
 	}
 
+	// setupServer
+
 	private boolean setupServer() {
 		println(sequence(text("\nSetting up: "), yellow(currentSetupDep)));
 
 		return runJinni( //
 				"setup-local-tomcat-platform", //
 				"--setupDependency", currentSetupDep, //
-				"--installationPath", currentSetupDirectory.getAbsolutePath(), //
+				"--installationPath", currentSetupInstallationDir.getAbsolutePath(), //
 				"--shutdownCommand", SHUTDOWN_CMD, //
-				"--runtimeProperties", "TRIBEFIRE_PUBLIC_SERVICES_URL", "${TRIBEFIRE_SERVICES_URL}"
+				"--runtimeProperties", "TRIBEFIRE_PUBLIC_SERVICES_URL", "${TRIBEFIRE_SERVICES_URL}" //
 		);
 	}
 
@@ -187,6 +194,37 @@ class IntegrationTestsRunner {
 
 		return error == null;
 	}
+
+	// setupEnvironment
+
+	private boolean setupEnvironment() {
+		String setupScriptName = "setup-environment.sh";
+
+		File setupScript = new File(currentSetupArtifactDir, setupScriptName);
+		String setupScriptPath = pathOf(setupScript);
+
+		if (!setupScript.exists()) {
+			println(sequence(text("Won§t setup environment, setup script not found: "), yellow(setupScriptPath)));
+			return true;
+		}
+
+		if (!OsTools.isUnixSystem()) {
+			println(yellow("WARNING: Tests might fail as setup script found, but won't be executed on Windows: " + setupScriptPath));
+			return true;
+		}
+
+		println(sequence(text("Setting up environment with script: "), yellow(setupScriptPath)));
+
+		Maybe<String> resultMaybe = ProcessExecution.buildCommand(setupScript.getParentFile(), asList("sh", setupScriptName))//
+				.withInheritIo(true) //
+				.runReasoned();
+
+		error = resultMaybe.whyUnsatisfied();
+
+		return error == null;
+	}
+
+	// startServer_run_stopServer
 
 	private ProcessHandle tomcatProcessHandle;
 

@@ -28,7 +28,14 @@ import devrock.cicd.model.api.data.CodebaseAnalysis;
 import devrock.step.model.api.StepRequest;
 
 @Alias("itest")
-@Description("Runs integration tests")
+@Description("Runs integration tests. For each integration test it:\n\t" + //
+		"- finds the corresponding setup\n\t" + //
+		"- performs a `jinni setup-local-tomcat-platform`\n\t" + //
+		"- (optional) prepares environment by executing the `setup-environment.sh` in the setup artifact's directory\n\t" + //
+		"- starts Tomcat\n\t" + //
+		"- runs integration tests\n\t" + //
+		"- stops Tomcat" //
+)
 public interface RunIntegrationTests extends StepRequest {
 
 	EntityType<RunIntegrationTests> T = EntityTypes.T(RunIntegrationTests.class);
