@@ -828,15 +828,26 @@ public class AnalyzeCodebaseProcessor extends SpawningServiceProcessor<AnalyzeCo
 		}
 
 		private TransitiveResolutionContextBuilder buildCodebaseResolutionContext() {
-			Set<EqProxy<ArtifactIdentification>> localIdentifications = new HashSet<>();
+			Map<EqProxy<ArtifactIdentification>, LocalArtifact> localIdentifications = new HashMap<>();
 			
 			for (LocalArtifact localArtifact: localArtifactsByFolderName.values()) {
 				CompiledDependencyIdentification terminal = CompiledDependencyIdentification.from(localArtifact.getArtifactIdentification());
-				localIdentifications.add(HashComparators.artifactIdentification.eqProxy(terminal));
+				localIdentifications.put(HashComparators.artifactIdentification.eqProxy(terminal), localArtifact);
 			}
 			
 			return TransitiveResolutionContext.build() //
-					.dependencyFilter(d -> localIdentifications.contains(HashComparators.artifactIdentification.eqProxy(d))) //
+					.dependencyFilter(d -> {
+						LocalArtifact la = localIdentifications.get(HashComparators.artifactIdentification.eqProxy(d)); //
+						// exclude codebase-foreign dependencies
+						if (la == null)
+							return false;
+						
+						// exclude direct-versioned dependencies that are not satisfiable
+						if (d.getOrigin().getVersion() instanceof Version)
+							return d.getVersion().equals(la.getArtifactIdentification().getVersion());
+							
+						return true;
+					}) //
 					.includeParentDependencies(true) //
 					.includeImportDependencies(true) //
 					.lenient(true);
