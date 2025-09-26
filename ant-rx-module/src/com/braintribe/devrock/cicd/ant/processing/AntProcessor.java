@@ -259,11 +259,6 @@ public class AntProcessor extends AbstractDispatchingServiceProcessor<AntRequest
 			project.addBuildListener(logger);
 			project.init();
 
-			project.setBaseDir(projectDir);
-
-			ProjectHelper projectHelper = ProjectHelper.getProjectHelper();
-			project.addReference("ant.projectHelper", projectHelper);
-
 			if (antLibDir != null)
 				project.setProperty("ant.library.dir", antLibDir.getAbsolutePath());
 
@@ -277,7 +272,7 @@ public class AntProcessor extends AbstractDispatchingServiceProcessor<AntRequest
 			Demuxing.bindSubProjectToCurrentThread(project);
 
 			try {
-				projectHelper.parse(project, new File(projectDir, buildXmlFile));
+				ProjectHelper.configureProject(project, new File(projectDir, buildXmlFile));
 
 				String target = request.getTarget();
 
