@@ -223,11 +223,22 @@ public class AntProcessor extends AbstractDispatchingServiceProcessor<AntRequest
 			printWriter.append(e.getLocation().toString());
 			e.printStackTrace(printWriter);
 			printWriter.flush();
-			
+
 			return stringWriter.toString();
+		} else {
+			return e.toString() + ". Root cause:\n\t " + findRootCause(e) + "\nFor full stacktrace use 'verbose' option.";
 		}
-		else
-			return e.toString();
+	}
+
+	private String findRootCause(Throwable e) {
+		Throwable rootCause = e;
+		while (true) {
+			Throwable cause = rootCause.getCause();
+			if (cause == null || cause == rootCause)
+				return rootCause.toString();
+
+			rootCause = cause;
+		}
 	}
 
 	private Outputs openOutputs(RunAnt request, File projectDir) {
