@@ -100,6 +100,8 @@ public class RaiseAndMergeArtifactsProcessor extends SpawningServiceProcessor<Ra
 				VersionedArtifactIdentification ai = artifact.getArtifactIdentification();
 				Version version = Version.parse(ai.getVersion());
 				
+				ConsoleOutput versionAsBefore = McOutputs.version(version);
+
 				Maybe<Version> raisedVersionMaybe = Versions.raise(version);
 				
 				if (raisedVersionMaybe.isUnsatisfied())
@@ -109,8 +111,6 @@ public class RaiseAndMergeArtifactsProcessor extends SpawningServiceProcessor<Ra
 							.toReason();
 				
 				version = raisedVersionMaybe.get();
-				
-				ConsoleOutput versionAsBefore = McOutputs.version(version);
 				
 				String adaptedVersion = version.asString();
 
