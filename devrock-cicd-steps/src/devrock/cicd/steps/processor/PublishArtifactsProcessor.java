@@ -41,7 +41,7 @@ import com.braintribe.model.artifact.consumable.ArtifactResolution;
 import com.braintribe.model.artifact.consumable.Part;
 import com.braintribe.model.resource.FileResource;
 import com.braintribe.model.resource.Resource;
-import com.braintribe.utils.lcd.LazyInitialized;
+import com.braintribe.utils.lcd.Lazy;
 import com.braintribe.wire.api.Wire;
 import com.braintribe.wire.api.context.WireContext;
 import com.braintribe.wire.api.context.WireContextBuilder;
@@ -156,7 +156,7 @@ public class PublishArtifactsProcessor extends SpawningServiceProcessor<PublishA
 					
 					List<Artifact> publishedArtifacts = resolution.getSolutions().stream().filter(a -> !a.hasFailed()).toList();
 					
-					LazyInitialized<Reason> collatorReason = new LazyInitialized<>(() -> Reasons.build(UploadArtifactsFailed.T).text("Failure while uploading to repository " + uploadRepository.getName()).toReason());
+					Lazy<Reason> collatorReason = new Lazy<>(() -> Reasons.build(UploadArtifactsFailed.T).text("Failure while uploading to repository " + uploadRepository.getName()).toReason());
 					
 					Reason error = ArtifactIndexUpdate.updateArtifactIndex(uploadRepository, artifactDeployer, resolver, publishedArtifacts);
 					

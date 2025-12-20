@@ -50,7 +50,7 @@ import com.braintribe.model.artifact.essential.PartIdentification;
 import com.braintribe.model.artifact.essential.VersionedArtifactIdentification;
 import com.braintribe.model.resource.FileResource;
 import com.braintribe.model.version.Version;
-import com.braintribe.utils.lcd.LazyInitialized;
+import com.braintribe.utils.lcd.Lazy;
 import com.braintribe.wire.api.Wire;
 import com.braintribe.wire.api.context.WireContext;
 import com.braintribe.wire.api.context.WireContextBuilder;
@@ -165,7 +165,7 @@ public class BuildArtifactsProcessor extends SpawningServiceProcessor<BuildArtif
 							.filter(LocalArtifact::getBundle) //
 							.collect(Collectors.toList());
 
-					LazyInitialized<Reason> failure = new LazyInitialized<>( //
+					Lazy<Reason> failure = new Lazy<>( //
 							() -> Reasons.build(SolutionHashResolutionFailed.T) //
 									.text("Error while resolving solution hashes for built artifacts that are bundlers") //
 									.toReason() //

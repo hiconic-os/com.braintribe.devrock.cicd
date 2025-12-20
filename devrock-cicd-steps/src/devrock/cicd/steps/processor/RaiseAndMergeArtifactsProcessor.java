@@ -42,41 +42,41 @@ import devrock.git.GitTools;
 import devrock.pom.PomTools;
 
 public class RaiseAndMergeArtifactsProcessor extends SpawningServiceProcessor<RaiseAndMergeArtifacts, RaiseAndMergeArtifactsResponse> {
-	
+
 	@Override
 	protected StatefulServiceProcessor spawn() {
 		return new StatefulCodebaseAnalysis();
 	}
-	
+
 	private class StatefulCodebaseAnalysis extends StatefulServiceProcessor {
-		
+
 		private CodebaseAnalysis codebaseAnalysis;
 		private CodebaseDependencyAnalysis dependencyAnalysis;
 
 		@Override
 		protected Maybe<? extends RaiseAndMergeArtifactsResponse> process() {
-			
+
 			codebaseAnalysis = request.getCodebaseAnalysis();
 			dependencyAnalysis = request.getCodebaseDependencyAnalysis();
 			GitContext gitContext = request.getGitContext();
 
 			Reason error = raiseBuildArtifactVersions();
-			
+
 			if (error != null)
 				return error.asMaybe();
-					
+
 			File path = new File(codebaseAnalysis.getBasePath());
 			error = GitTools.gitPush(path, gitContext.getBaseRemote(), gitContext.getBaseBranch());
-			
+
 			// TODO: check error for specific recognition of concurrent PR to build a meaningful reason
 			if (error != null)
 				return error.asMaybe();
-			
+
 			RaiseAndMergeArtifactsResponse response = RaiseAndMergeArtifactsResponse.T.create();
 			response.setAnalysis(codebaseAnalysis);
 			response.setDependencyAnalysis(dependencyAnalysis);
 			response.setDependencyResolution(dependencyAnalysis.getResolution());
-			
+
 			return Maybe.complete(response);
 		}
 
@@ -84,64 +84,62 @@ public class RaiseAndMergeArtifactsProcessor extends SpawningServiceProcessor<Ra
 		private Reason raiseBuildArtifactVersions() {
 			if (codebaseAnalysis.getBuilds().isEmpty())
 				return null;
-			
+
 			File path = new File(codebaseAnalysis.getBasePath());
-			
+
 			Reason error = GitTools.gitCreateLocalBranch(path, "raise-revisions");
 
 			if (error != null)
 				return error;
-			
+
 			Map<String, AnalysisArtifact> artifactIndex = dependencyAnalysis.getArtifactIndex();
 			File groupDir = new File(codebaseAnalysis.getBasePath());
-			
-			for (LocalArtifact artifact: codebaseAnalysis.getBuilds()) {
+
+			for (LocalArtifact artifact : codebaseAnalysis.getBuilds()) {
 				// read version from local artifact
 				VersionedArtifactIdentification ai = artifact.getArtifactIdentification();
 				Version version = Version.parse(ai.getVersion());
-				
+
 				ConsoleOutput versionAsBefore = McOutputs.version(version);
 
 				Maybe<Version> raisedVersionMaybe = Versions.raise(version);
-				
+
 				if (raisedVersionMaybe.isUnsatisfied())
 					return Reasons.build(UnsupportedOperation.T) //
 							.text("Cannot raise revision on version [" + version.asString() + "] in artifact " + ai.getArtifactId()) //
 							.cause(raisedVersionMaybe.whyUnsatisfied()) //
 							.toReason();
-				
+
 				version = raisedVersionMaybe.get();
-				
+
 				String adaptedVersion = version.asString();
 
 				// adapt local artifact
 				ai.setVersion(adaptedVersion);
 				artifact.setIdentification(ai.asString());
-				
+
 				// adapt analysis artifact
 				AnalysisArtifact analysisArtifact = artifactIndex.get(ai.getArtifactId());
 				analysisArtifact.setVersion(adaptedVersion);
-				
+
 				// pom
 				File artifactDir = new File(groupDir, artifact.getFolderName());
 				File pomFile = new File(artifactDir, "pom.xml");
 				error = PomTools.changeVersion(pomFile, artifact.getArtifactIdentification().getVersion());
-				
+
 				if (error != null)
 					return error;
-				
+
 				ConsoleOutput versionAsAfter = McOutputs.version(version);
-				
+
 				ConsoleOutputs.println(sequence( //
-					brightBlack("Raised "), //
-					text(ai.getArtifactId()), //
-					brightBlack(" from "), //
-					versionAsBefore,
-					brightBlack(" to "), //
-					versionAsAfter
-				));
+						brightBlack("Raised "), //
+						text(ai.getArtifactId()), //
+						brightBlack(" from "), //
+						versionAsBefore, brightBlack(" to "), //
+						versionAsAfter));
 			}
-			
+
 			return GitTools.gitCommitAll(path, "[CI] raise revisions of published artifacts");
 		}
 	}
