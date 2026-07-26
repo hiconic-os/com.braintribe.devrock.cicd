@@ -23,6 +23,12 @@ limitations under the License.
     <properties>
         <cli>true</cli>
         <launchScript>hc-build</launchScript>
+        <!--
+            hc-build-app integrates devrock-ant-tasks into the next Hiconic SDK generation.
+            It is a bootstrap CLI and consumes no indexed runtime configuration itself, so it
+            must remain buildable by the preceding SDK generation.
+        -->
+        <mirrorClasspathResources>false</mirrorClasspathResources>
     </properties>
     <licenses>
         <license>
