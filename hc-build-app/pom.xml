@@ -77,7 +77,8 @@ limitations under the License.
         <dependency>
             <groupId>com.braintribe.devrock.ant</groupId>
             <artifactId>devrock-ant-tasks</artifactId>
-            <version>${V.com.braintribe.devrock.ant}</version>
+            <!-- Packaged RX configuration projection is part of the SDK tool surface. -->
+            <version>[1.0.509,1.1)</version>
         </dependency>
     </dependencies>
 </project>
