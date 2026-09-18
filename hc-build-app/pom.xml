@@ -77,8 +77,8 @@ limitations under the License.
         <dependency>
             <groupId>com.braintribe.devrock.ant</groupId>
             <artifactId>devrock-ant-tasks</artifactId>
-            <!-- Packaged RX configuration projection is part of the SDK tool surface. -->
-            <version>[1.0.509,1.1)</version>
+            <!-- The SDK needs the application Dockerfile base-image default from 1.0.514. -->
+            <version>[1.0.514,1.1)</version>
         </dependency>
     </dependencies>
 </project>
