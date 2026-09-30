@@ -1,21 +1,45 @@
 // Command-line arguments
 const args = process.argv.slice(2);
+const verbose = args.includes("-v");
 const GITHUB_TOKEN = args.find(arg => arg.startsWith("--token="))?.split("=")[1];
+const GITHUB_ORG = args.find(arg => arg.startsWith("--org="))?.split("=")[1];
 const DRY_RUN = args.includes("--dry");
+const HELP = args.includes("-h") || args.includes("--help");
 
-const GITHUB_USERNAME = "hiconic-os"; // Or organization name
 const PACKAGE_NAME = "meta.artifact-index"; // Case-sensitive package name
 const PACKAGE_TYPE = "maven"; // Example: 'npm', 'maven', 'docker'
-const IS_ORG = true; // Set to true if it's an org package
+
+function printHelp() {
+  console.log(`Usage: node delete-old-versions.js --token=YOUR_TOKEN --org=YOUR_ORG [options]
+
+Deletes all but the latest version of the GitHub package "${PACKAGE_NAME}".
+
+Required parameters:
+  --token=TOKEN   GitHub personal access token
+  --org=ORG       GitHub organization that owns the package
+
+Options:
+  --dry           Show what would be deleted without deleting anything
+  -v              Enable verbose output
+  -h, --help      Show this help message`);
+}
+
+if (HELP) {
+  printHelp();
+  process.exit(0);
+}
 
 if (!GITHUB_TOKEN) {
   console.error("⚠️  GitHub Token is missing! Use --token=YOUR_TOKEN");
   process.exit(1);
 }
 
-const GITHUB_API = IS_ORG
-  ? `https://api.github.com/orgs/${GITHUB_USERNAME}/packages/${PACKAGE_TYPE}/${PACKAGE_NAME}/versions`
-  : `https://api.github.com/users/${GITHUB_USERNAME}/packages/${PACKAGE_TYPE}/${PACKAGE_NAME}/versions`;
+if (!GITHUB_ORG) {
+  console.error("⚠️  GitHub organization is missing! Use --org=YOUR_ORG");
+  process.exit(1);
+}
+
+const GITHUB_API = `https://api.github.com/orgs/${GITHUB_ORG}/packages/${PACKAGE_TYPE}/${PACKAGE_NAME}/versions`;
 
 async function fetchVersions() {
     let versions = [];
