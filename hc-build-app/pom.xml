@@ -77,8 +77,8 @@ limitations under the License.
         <dependency>
             <groupId>com.braintribe.devrock.ant</groupId>
             <artifactId>devrock-ant-tasks</artifactId>
-            <!-- The SDK needs the application Dockerfile base-image default from 1.0.514. -->
-            <version>[1.0.514,1.1)</version>
+            <!-- The SDK image assembler must retain descriptor-only jars while stripping mirrored resources. -->
+            <version>[1.0.520,1.1)</version>
         </dependency>
     </dependencies>
 </project>
